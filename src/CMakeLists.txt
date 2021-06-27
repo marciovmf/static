@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.0)
+set(CMAKE_CXX_STANDARD 20)
+set(PROJECT_NAME ussg)
+Project(${PROJECT_NAME})
+list(APPEND SOURCEs main.cpp)
+add_executable(${PROJECT_NAME} ${SOURCEs})
