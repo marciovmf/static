@@ -90,7 +90,7 @@ The folowwing global tags are available for Pages and Posts:
 
 In addition to tags there are commands that can be used on Pages and Posts.
 
-### Include
+### Include command
 The include command is used to insert the content of another file into the current page.
 
 The syntax is:
@@ -105,7 +105,7 @@ The following line includes the contents of the file ** _site_root_/include/head
 {{include include/header.html}}
 ```
 
-### For loop
+### For command
 The For command allows iterating over collections and the syntax is:
 ```{{for ITERATORNAME in COLLECTION}} {{endfor}}```
 
