@@ -2,10 +2,6 @@
 //TODO(marcio): Should I implement IF/ELSE commands ?
 //FIXME(marcio): Iterating a list of 0 posts should work as expected but it's causing a syntax error instead
 
-#ifdef WIN32
-#define _CRT_SECURE_NO_WARNINGS
-#include <windows.h>
-#endif
 #include <filesystem>
 #include <stdio.h>
 #include <iostream>
@@ -333,7 +329,7 @@ std::string& toLower(std::string& str)
   {
     char c = str[i];
 
-    str[i] = tolower(c);
+    str[i] = (char) tolower(c);
   }
   return str;
 }
@@ -353,7 +349,7 @@ bool requireToken(ParseContext& context, Token::Type requiredType, Token* tokenF
 std::unordered_map<std::string, std::string>* loadSiteConfigFile(std::filesystem::path& siteConfigFile)
 {
   size_t bufferSize;
-  std::string& fileName = siteConfigFile.string();
+  std::string fileName = siteConfigFile.string();
   char* buffer = readFileToBuffer(fileName.c_str(), &bufferSize);
   if(! buffer)
   {
@@ -525,8 +521,6 @@ bool parseExpression(ParseContext& context,
         if (!requireToken(context, Token::Type::TOKEN_IDENTIFIER, &token))
           return false;
 
-        const char* expressionStart = token.start;
-
         std::string iteratorName = std::string(token.start,  token.end - token.start);
 
         if (!requireToken(context, Token::Type::TOKEN_IN, &token))
@@ -649,7 +643,7 @@ size_t processSource(
 
       if (!parseExpression(context, outStream, templateRoot, variables, pageList, postList))
       {
-        return -1;
+        return (size_t) -1;
       }
       writeSize = 0;
       // Nothing was parsed. Probably an end of block. So we exit now.
@@ -714,7 +708,7 @@ bool processPage(
   return result;
 }
 
-int generateSite(std::filesystem::path& inputDirectory, std::filesystem::path& outputDirectory)
+int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&& outputDirectory)
 {
 
   std::vector<Page> pageList;
@@ -760,9 +754,9 @@ int generateSite(std::filesystem::path& inputDirectory, std::filesystem::path& o
 
   if (postFiles)
   {
-    for(auto& it = postFiles->rbegin(); it != postFiles->rend(); ++it)
+    for(auto it = postFiles->rbegin(); it != postFiles->rend(); ++it)
     {
-      std::string& fileName = (*it).filename().string();
+      std::string fileName = (*it).filename().string();
       std::string layoutName = fileName.substr(0, fileName.find("-"));
       std::string timestamp  = fileName.substr(layoutName.length() + 1, 8); //AAAAMMDD = 8 chars
       const size_t layoutNameLen = layoutName.length();
@@ -891,7 +885,6 @@ int main(int argc, char** argv)
     return 0;
   }
 
-  return generateSite(std::filesystem::path(argv[1]),
-      std::filesystem::path(argv[2]));
+  return generateSite(std::filesystem::path(argv[1]), std::filesystem::path(argv[2]));
 }
 
