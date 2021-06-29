@@ -126,8 +126,10 @@ A simple menu with all the posts could be written like this:
   <nav>
     <ul class="archive-list">
       {{for p in all_posts}}
-        <li><a href="{{p.url}}">{{p.title}}<p><time
-        datetime="{{p.year}}-{{p.month}}-{{p.day}}:00:00+02:00">{{p.year}}-{{p.month_name}}-{{p.day}}</time></p></a></li>
+        <li><a href="{{p.url}}">{{p.title}}<p>
+        <time datetime="{{p.year}}-{{p.month}}-{{p.day}}:00:00+02:00">
+          {{p.year}}-{{p.month_name}}-{{p.day}}
+        </time></p></a></li>
       {{endfor}}
     </ul>
   </nav>
