@@ -53,13 +53,13 @@ Posts are special .txt files located on the folder pointed by **site.post_src_di
 Post file names should be named according to the rule:
 ```LAYOUT-YYYYMMDD-TITLE.txt```
 where:
-- LAYOUT is the name of the layout file used to render this post content. A mathing layout html file is expected to exist at _site_root_/layout. For example if LAYOUT is "PostLayout", there must be a _site_root_/layout/PostLayout.html.
+- LAYOUT is the name of the layout file used to render this post content. A matching layout html file is expected to exist at _site_root_/layout. For example if LAYOUT is "PostLayout", there must be a _site_root_/layout/PostLayout.html.
 - YYYYMMDD is a timestamp where YYYY is a 4 digit year, MM is 2 digit month and DD is a 2 digit day.
 - TITLE is the post title. 
 
 Files with wrong naming convention will be ignored. 
 Files with invalid month/day ranges will be ignored.
-Files without a mathing layout file will be ignored.
+Files without a matching layout file will be ignored.
 
 Posts can have anyting insde. Ideally you should add html to structure the post as needed.
 
