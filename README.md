@@ -111,7 +111,7 @@ The For command allows iterating over collections and the syntax is:
 
 Where:
 - ITERATORNAME is any name (except reserved tag names) to use as the collection iterator.
-  - Regardless of the collection, it's always possible to get the current iteraion count from {{ITERATORNAME.number}}
+  - Regardless of the collection, it's always possible to get the current iteration count from {{ITERATORNAME.number}}
 - COLLECTION is the collection name. There are 2 only collections implemented at the moment: 
   - **all_posts** exposes all the post tags mentioned so far exept the {{post.body}} that is only avaliable from layout files (see Layout files above). The posts are sorted by date from newest to the oldest.
   - **all_pages** exposes all the page tags (see page files above).
