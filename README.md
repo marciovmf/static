@@ -1,4 +1,4 @@
-# (Un)amazing
+# Static
 
 A minimalist monolithic static site generator.
 
