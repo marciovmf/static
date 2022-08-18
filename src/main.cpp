@@ -1,6 +1,5 @@
 //TODO(marcio): Provide some way to sort collections
 //TODO(marcio): Should I implement IF/ELSE commands ?
-//FIXME(marcio): Iterating a list of 0 posts should work as expected but it's causing a syntax error instead
 
 #include <filesystem>
 #include <stdio.h>
@@ -70,16 +69,16 @@ struct Token
     TOKEN_EOL,              // \n
     TOKEN_EXPRESSION_START, // {{
     TOKEN_EXPRESSION_END,   // }}
-    TOKEN_INCLUDE,          // include
-    TOKEN_FOR,              // for
-    TOKEN_ENDFOR,           // endfor
-    TOKEN_IN,               // in
-    TOKEN_IDENTIFIER,       // similar to C variable name restrictions
-    TOKEN_COLLECTION_PAGE,  // all_pages
-    TOKEN_COLLECTION_POST,  // all_posts
-    TOKEN_PATH,             // Path between double quotes "foo/bar"
-    TOKEN_UNKNOWN           = -1,     // Any unknown token 
-    TOKEN_EOF               = -2,     // EOF
+  TOKEN_INCLUDE,          // include
+  TOKEN_FOR,              // for
+  TOKEN_ENDFOR,           // endfor
+  TOKEN_IN,               // in
+  TOKEN_IDENTIFIER,       // similar to C variable name restrictions
+  TOKEN_COLLECTION_PAGE,  // all_pages
+  TOKEN_COLLECTION_POST,  // all_posts
+  TOKEN_PATH,             // Path between double quotes "foo/bar"
+  TOKEN_UNKNOWN           = -1,     // Any unknown token 
+  TOKEN_EOF               = -2,     // EOF
   };
 
   Type type;
@@ -487,7 +486,11 @@ bool parseExpression(ParseContext& context,
         {
           variableValue = (*it).second;
         }
-        outStream.write(variableValue.c_str(), variableValue.length());
+
+        if (outStream)
+        {
+          outStream.write(variableValue.c_str(), variableValue.length());
+        }
         return requireToken(context, Token::Type::TOKEN_EXPRESSION_END, &token);
       }
       break;
@@ -546,23 +549,43 @@ bool parseExpression(ParseContext& context,
 
         char* blockSourceStart = token.end;
         size_t advance = 0;
+        if (numIterations > 0)
+        {
+          // If we are iterating an empty list, we still need to parse the
+          // contents of the block in order to find the matching {{endfor}}
+          // and get the correct advance value.
+          // Because of that I'm passing a dummy stream and defining default
+          // values to all variables.
+
+          variables[iteratorName + ".title" ] = "undefined";
+          variables[iteratorName + ".url"   ] = "undefined";
+          variables[iteratorName + ".layout"] = "undefined";
+          variables[iteratorName + ".year"  ] = "undefined";
+          variables[iteratorName + ".month" ] = "undefined";
+          variables[iteratorName + ".day"   ] = "undefined";
+          variables[iteratorName + ".month_name"] = "undefined";
+          std::ofstream dummy;
+          advance = processSource(dummy, templateRoot, variables, pageList, postList, blockSourceStart, context.eof);
+        }
+
         for(int i=0; i < numIterations; i++)
         {
           if (collectionType == Token::Type::TOKEN_COLLECTION_PAGE)
           {
             Page& page = pageList[i];
-            variables[iteratorName + ".title"] = page.title;
-            variables[iteratorName + ".url"] = page.relativeUrl;
+
+            variables[iteratorName + ".title" ] = page.title;
+            variables[iteratorName + ".url"   ] = page.relativeUrl;
           }
           else if (collectionType == Token::Type::TOKEN_COLLECTION_POST)
           {
             Post& post = postList[i];
-            variables[iteratorName + ".title"] = post.title;
-            variables[iteratorName + ".url"] = post.relativeUrl;
+            variables[iteratorName + ".title" ] = post.title;
+            variables[iteratorName + ".url"   ] = post.relativeUrl;
             variables[iteratorName + ".layout"] = post.layoutName;
-            variables[iteratorName + ".year"] = post.year;
-            variables[iteratorName + ".month"] = post.month;
-            variables[iteratorName + ".day"] =  post.day;
+            variables[iteratorName + ".year"  ] = post.year;
+            variables[iteratorName + ".month" ] = post.month;
+            variables[iteratorName + ".day"   ] = post.day;
             variables[iteratorName + ".month_name"] = post.monthName;
           }
           else
@@ -580,6 +603,7 @@ bool parseExpression(ParseContext& context,
             return false;
           }
         }
+        
 
         // remove variables for this iteration
         variables.erase(iteratorName + ".title");
@@ -619,6 +643,7 @@ size_t processSource(
     const char* sourceStart,
     const char* sourceEnd)
 {
+
   char* p = (char*)sourceStart;
   char* writeStart = p;
   size_t writeSize = 0;
@@ -626,7 +651,7 @@ size_t processSource(
   while(p < sourceEnd)
   {
     //found an expression
-    if (*p == '{'  && (p + 1) < sourceEnd && *(p+1) == '{')
+    if (*p == '{'  && (p+1) < sourceEnd && *(p+1) == '{')
     {
       if (writeSize > 0)
       {
