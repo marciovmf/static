@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<!-- Template by https://www.html.am/templates/downloads/view-source.cfm?template=layout-templates/2-column-left-menu-header-footer.cfm -->
+<html>
+  {{include "include/header.html"}}
+  {{include "include/top.html"}}
+  <body>		
+    <div id="wrapper">
+      <main>
+        <div id="content">
+          <div class="innertube">
+            <h1>Hello Sailor!</h1>
+            <p>Wellcome to the demo site generated with <b>static</b>.</p>
+            <h2>Why another static site generator ?</h2>
+            <p>
+            I used to have a wordpress website. Wordpress is as powerfull as bloated and slow. It also breaks from time to time if you allow it to update automatically. So I decided "port" my personal blog as a static site. While looking for static site generators on the internet I realized almost all of them were also a bloated mess that required me to install a bunch of stuff just to replace some strings on a html files. Then I decided to spend a weekend write something that fits my needs. This is a really simple program that builds as a single command line executable and requires no additional dependencies to build or run.</p>
+            <h2>Should I use it ?</h2>
+            <p>Yes, but no. If you just need simple features this program gets you covered. If you need fancy frontend generation logic and don't mind installing a bunch of crap, you better not.
+            </p>
+            <p>
+            I actually use it for my personal <a href="http://handmadegame.dev">blog</a>.
+            </p>
+            <h2>How to use it ?</h2>
+            <p> Go on the <a hrrf="https://github.com/marciovmf/static">github page</a> and the readme.md file should give you all
+            the information you need</p>
+
+          </div>
+        </div>
+      </main>
+      <nav>
+        <div class="innertube">
+          <h3>Archive</h3>
+          <ul>
+            {{for p in all_posts}}
+            <li><a href="{{p.url}}">{{p.title}}<time
+                   datetime="{{p.year}}-{{p.month}}-{{p.day}}:00:00+02:00">{{p.year}}-{{p.month_name}}-{{p.day}}</time></a></li>
+            {{endfor}}
+          </ul>
+        </div>
+      </nav>
+    </div>
+    {{include "include/footer.html"}}
+  </body>
+</html>

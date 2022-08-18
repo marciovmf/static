@@ -1,0 +1,14 @@
+<!DOCTYPE HTML>
+<html>
+  {{include "include/header.html"}}
+  <body>
+    <div class="content">
+      {{include "include/top.html"}}
+      <h2>{{post.title}}</h2>
+      <time
+        datetime="{{post.year}}-{{post.month}}-{{post.day}}:00:00+02:00">{{post.year}}-{{post.month_name}}-{{post.day}}</time>
+      <article>{{post.body}}</article>
+      {{include "include/footer.html"}}
+    </div>
+  </body>
+</html>

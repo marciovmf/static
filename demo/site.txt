@@ -1,0 +1,4 @@
+site.name = "Demo static site"
+site.url = "http://localhost/"
+site.template_dir = "themes/default"
+site.post_src_dir = "posts"
