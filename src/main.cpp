@@ -58,9 +58,7 @@ struct Post : public Page
     month(month),
     year(year),
     monthName(monthName)
-    {}
-
-  
+  {}
 };
 
 // parsing
@@ -212,7 +210,7 @@ Token getToken(ParseContext& context)
     token.end+=2;
     return token;
   }
-  
+
   // TOKEN_ASSIGN
   if (c == '=')
   {
@@ -376,13 +374,13 @@ std::unordered_map<std::string, std::string>* loadSiteConfigFile(std::filesystem
   variables["month_02"] = "FEB";
   variables["month_03"] = "MAR";
   variables["month_04"] = "APR";
-  variables["month_05"] = "MAR";
+  variables["month_05"] = "MAY";
   variables["month_06"] = "JUN";
   variables["month_07"] = "JUL";
-  variables["month_08"] = "AGO";
+  variables["month_08"] = "AUG";
   variables["month_09"] = "SEP";
-  variables["month_10"] = "AUG";
-  variables["month_11"] = "OCT";
+  variables["month_10"] = "OCT";
+  variables["month_11"] = "NOV";
   variables["month_12"] = "DEC";
 
   while (context.p < context.eof)
@@ -396,7 +394,7 @@ std::unordered_map<std::string, std::string>* loadSiteConfigFile(std::filesystem
     }
 
     if (! (requireToken(context, Token::Type::TOKEN_ASSIGN)
-        && requireToken(context, Token::Type::TOKEN_PATH, &value)))
+          && requireToken(context, Token::Type::TOKEN_PATH, &value)))
     {
       success = false;
       break;
@@ -710,7 +708,6 @@ bool processPage(
 
 int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&& outputDirectory)
 {
-
   std::vector<Page> pageList;
   std::vector<Post> postList;
   bool hasErrors = false;
@@ -722,8 +719,8 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
   std::filesystem::path siteConfigFile = inputDirectory / "site.txt";
   std::unordered_map<std::string, std::string>* variablesPtr = loadSiteConfigFile(siteConfigFile);
   std::unordered_map<std::string, std::string>& variables = *variablesPtr;
-  std::filesystem::path templateDirectory = variables["site.template_dir"]; 
-  std::filesystem::path postsDirectory = variables["site.posts_src_dir"]; 
+  std::filesystem::path templateDirectory = inputDirectory / variables["site.template_dir"]; 
+  std::filesystem::path postsDirectory = inputDirectory / variables["site.posts_src_dir"]; 
   std::filesystem::path layoutDirectory = templateDirectory / "layout";
 
   // Collect Page info
@@ -748,19 +745,19 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
   variables["site.num_posts"] = std::to_string((int)postList.size());
 
   // Collect Content and Layout info
-  std::set<std::filesystem::path>* postFiles = scanDirectory(postsDirectory, ".txt");
+  std::set<std::filesystem::path>* postFiles = scanDirectory(postsDirectory, ".html");
   std::set<std::filesystem::path>* layoutFiles = scanDirectory(layoutDirectory, ".html");
-  postFiles->erase(siteConfigFile); // ignore the site config file
 
   if (postFiles)
   {
+    postFiles->erase(siteConfigFile); // ignore the site config file
     for(auto it = postFiles->rbegin(); it != postFiles->rend(); ++it)
     {
       std::string fileName = (*it).filename().string();
       std::string layoutName = fileName.substr(0, fileName.find("-"));
       std::string timestamp  = fileName.substr(layoutName.length() + 1, 8); //AAAAMMDD = 8 chars
       const size_t layoutNameLen = layoutName.length();
-      const size_t titleLen = fileName.length() - layoutNameLen - 10 - 4; // -AAAAMMDD- = 10 chars; .txt = 4 chars
+      const size_t titleLen = fileName.length() - layoutNameLen - 10 - 5; // -AAAAMMDD- = 10 chars; .html = 5 chars
 
       // Fill in the content data
       std::string title = fileName.substr(layoutName.length() + 10, titleLen);
@@ -844,7 +841,7 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
     // Consider the template data as the page data
     variables["page.title"] = post.title;
     variables["page.url"] = post.relativeUrl;
-    
+
 
     // we need a "fake" page to pass to processPage
     //Page page(content.title, content.relativeUrl, layoutFileName);
@@ -869,10 +866,10 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
 
 
   logInfo("Copying assets ...\n");
-    std::filesystem::copy(templateDirectory / "assets", outputDirectory / "assets",
-        std::filesystem::copy_options::recursive |
-        std::filesystem::copy_options::overwrite_existing 
-        );
+  std::filesystem::copy(templateDirectory / "assets", outputDirectory / "assets",
+      std::filesystem::copy_options::recursive |
+      std::filesystem::copy_options::overwrite_existing 
+      );
   logInfo("Done\n");
   return 0;
 }
