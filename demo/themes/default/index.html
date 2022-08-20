@@ -20,7 +20,7 @@
             I actually use it for my personal <a href="http://handmadegame.dev">blog</a>.
             </p>
             <h2>How to use it ?</h2>
-            <p> Go on the <a hrrf="https://github.com/marciovmf/static">github page</a> and the readme.md file should give you all
+            <p> Go on the <a href="https://github.com/marciovmf/static">github page</a> and the readme.md file should give you all
             the information you need</p>
 
           </div>
@@ -30,9 +30,16 @@
         <div class="innertube">
           <h3>Posts</h3>
           <ul>
-            {{for p in all_posts orderby_desc date}}
+            {{for p in all_posts orderby_asc date}}
             <li><a href="{{p.url}}">{{p.title}}<time
                    datetime="{{p.year}}-{{p.month}}-{{p.day}}:00:00+02:00">{{p.year}}-{{p.month_name}}-{{p.day}}</time></a></li>
+            {{endfor}}
+          </ul>
+
+          <h3>Pages</h3>
+          <ul>
+            {{for p in all_pages}}
+            <li><a href="{{p.url}}">{{p.title}}</a></li>
             {{endfor}}
           </ul>
         </div>

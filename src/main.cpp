@@ -49,7 +49,6 @@ struct Page
 
   static bool compareByTitle(const Page& a, const Page& b)
   {
-    logInfoFmt("a.name = %s, b.name = %s", a.title.c_str(), b.title.c_str());
     return Page::sorting.ascending ? a.title < b.title : a.title > b.title;
   }
 
@@ -138,11 +137,14 @@ struct Post : public Page
 
   static bool compareByDate(const Post& a, const Post& b)
   {
-
-    if (Post::sorting.ascending )
-    return a.yearInt <= b.yearInt && a.monthInt <= b.monthInt && a.dayInt < b.dayInt;
+    if (Post::sorting.ascending)
+      return a.yearInt < b.yearInt 
+        || a.yearInt == b.yearInt && a.monthInt < b.monthInt 
+        || a.yearInt == b.yearInt && a.monthInt == b.monthInt && a.dayInt < b.dayInt;
     else
-    return a.yearInt >= b.yearInt && a.monthInt >= b.monthInt && a.dayInt > b.dayInt;
+      return a.yearInt > b.yearInt 
+        || a.yearInt == b.yearInt && a.monthInt > b.monthInt 
+        || a.yearInt == b.yearInt && a.monthInt == b.monthInt && a.dayInt > b.dayInt;
   }
 
   static bool compareByMonth(const Post& a, const Post& b)
@@ -912,6 +914,7 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
   bool hasWarnings = false;
 
   // Try to create the output directory in case it does not exists
+  std::filesystem::remove_all(outputDirectory);
   std::filesystem::create_directories(outputDirectory);
 
   std::filesystem::path siteConfigFile = inputDirectory / "site.txt";
@@ -991,6 +994,7 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
       if (hasWarnings)
       {
         logError("Skipping file '%s'.\n", fileName.c_str());
+        hasWarnings = false;
         continue;
       }
 

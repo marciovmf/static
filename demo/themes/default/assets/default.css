@@ -88,11 +88,18 @@ img {
   border-color: #eee;
 }
 
-pre, code {
+pre{
   border-width: 5px;
   border-style: solid;
-  border-color: #eee;
-  line-height: 50%;
+  border-color: #ddd;
+  background-color: #eee;
+  line-height: 80%;
   word-wrap: break-word;
   padding: 4px;
+
+  white-space: pre-wrap;       /* Since CSS 2.1 */
+  white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
+  white-space: -pre-wrap;      /* Opera 4-6 */
+  white-space: -o-pre-wrap;    /* Opera 7 */
+  word-wrap: break-word;       /* Internet Explorer 5.5+ */
 }
