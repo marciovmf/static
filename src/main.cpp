@@ -1,5 +1,5 @@
-//TODO(marcio): Provide some way to sort collections
 //TODO(marcio): Should I implement IF/ELSE commands ?
+//TODO(marcio): Make possible to iterate a subsection of a collection
 
 #include <filesystem>
 #include <stdio.h>
@@ -11,15 +11,29 @@
 #include <fstream>
 #include <unordered_map>
 #include <cctype>
+#include <algorithm>
+#include <any>
 
 #define logError(fmt, ...) printf("ERROR: "##fmt"", __VA_ARGS__)
 #define logInfoFmt(fmt, ...) printf("INFO: "##fmt"", __VA_ARGS__)
 #define logInfo(msg) printf("INFO: "##msg"")
 #define END_OF_FILE -1
 
+template<typename T>
+using CompareFunction = bool(*)(const T&, const T&);
+
+template<typename T>
+struct SortingInformation
+{
+  bool ascending = true;
+  CompareFunction<T> compareFunction = nullptr;
+  SortingInformation<T>(CompareFunction<T> f):compareFunction(f) {}
+};
+
 // site structure
 struct Page
 {
+  static SortingInformation<Page> sorting;
   std::string title;
   std::string relativeUrl;
   std::string sourceFileName;
@@ -32,15 +46,46 @@ struct Page
     relativeUrl(relativeUrl),
     sourceFileName(sourceFileName),
     outputFileName(outFileName) {}
+
+  static bool compareByTitle(const Page& a, const Page& b)
+  {
+    logInfoFmt("a.name = %s, b.name = %s", a.title.c_str(), b.title.c_str());
+    return Page::sorting.ascending ? a.title < b.title : a.title > b.title;
+  }
+
+  static bool compareByUrl(const Page& a, const Page& b)
+  {
+    return Page::sorting.ascending ? a.relativeUrl < b.relativeUrl : a.relativeUrl > b.relativeUrl;
+  }
+
+  static void compareBy(const std::string& member, bool ascending = true)
+  {
+    Page::sorting.ascending = ascending;
+    if (member == "title")
+      Page::sorting.compareFunction = (CompareFunction) Page::compareByTitle;
+    else if (member == "url")
+      Page::sorting.compareFunction = (CompareFunction) Page::compareByUrl;
+    else if (member == "title")
+      Page::sorting.compareFunction = (CompareFunction) Page::compareByTitle;
+    else
+    {
+      logError("Unable to sort Page list by unknown property '%s'", member.c_str());
+      Page::sorting.compareFunction = (CompareFunction) Page::compareByTitle;
+    }
+  }
 };
 
 struct Post : public Page
 {
+  static SortingInformation<Post> sorting;
   std::string layoutName;
   std::string year;
   std::string month;
   std::string day;
   std::string monthName;
+  int yearInt;
+  int monthInt;
+  int dayInt;
 
   Post(std::string title,
       std::string& relativeUrl,
@@ -56,29 +101,109 @@ struct Post : public Page
     day(day),
     month(month),
     year(year),
-    monthName(monthName)
-  {}
+    monthName(monthName),
+    yearInt(std::atoi(year.c_str())),
+    monthInt(std::atoi(month.c_str())),
+    dayInt(std::atoi(day.c_str()))
+  {
+  }
+
+  bool isAttribute(std::string& attributeName) 
+  {
+    return attributeName == "title" 
+        || attributeName == "relativeUrl"
+        || attributeName == "title"
+        || attributeName == "url"
+        || attributeName == "layout"
+        || attributeName == "year"
+        || attributeName == "month"
+        || attributeName == "day"
+        || attributeName == "month_name";
+  }
+
+  static bool compareByTitle(const Post& a, const Post& b)
+  {
+    return Post::sorting.ascending ? a.title < b.title : a.title > b.title;
+  }
+
+  static bool compareByUrl(const Post& a, const Post& b)
+  {
+    return Post::sorting.ascending ? a.relativeUrl < b.relativeUrl : a.relativeUrl > b.relativeUrl;
+  }
+
+  static bool compareByLayout(const Post& a, const Post& b)
+  {
+    return Post::sorting.ascending ? a.layoutName < b.layoutName : a.layoutName > b.layoutName;
+  }
+
+  static bool compareByDate(const Post& a, const Post& b)
+  {
+
+    if (Post::sorting.ascending )
+    return a.yearInt <= b.yearInt && a.monthInt <= b.monthInt && a.dayInt < b.dayInt;
+    else
+    return a.yearInt >= b.yearInt && a.monthInt >= b.monthInt && a.dayInt > b.dayInt;
+  }
+
+  static bool compareByMonth(const Post& a, const Post& b)
+  {
+    bool result = a.yearInt <= b.yearInt && a.monthInt < b.monthInt;
+    return Post::sorting.ascending ? result : !result;
+  }
+
+  static bool compareByYear(const Post& a, const Post& b)
+  {
+    bool result = a.yearInt < b.yearInt;
+    return Post::sorting.ascending ? result : !result;
+  }
+
+  static void compareBy(const std::string& member, bool ascending = true)
+  {
+    Post::sorting.ascending = ascending;
+    if (member == "title")
+      Post::sorting.compareFunction = Post::compareByTitle;
+    else if (member == "url")
+      Post::sorting.compareFunction = Post::compareByUrl;
+    else if (member == "layout")
+      Post::sorting.compareFunction = Post::compareByLayout;
+    else if (member == "year")
+      Post::sorting.compareFunction = Post::compareByYear;
+    else if (member == "month")
+      Post::sorting.compareFunction = Post::compareByMonth;
+    else if (member == "day" || member == "date")
+      Post::sorting.compareFunction = Post::compareByDate;
+    else
+    {
+      logError("Unable to sort Post list by unknown property '%s'", member.c_str());
+      Post::sorting.compareFunction = (CompareFunction) Post::compareByDate;
+    }
+  }
 };
+
+SortingInformation<Page> Page::sorting = SortingInformation<Page>(Page::compareByTitle);
+SortingInformation<Post> Post::sorting = SortingInformation<Post>(Post::compareByDate);
 
 // parsing
 struct Token
 {
   enum Type
   {
-    TOKEN_ASSIGN,           // =
-    TOKEN_EOL,              // \n
-    TOKEN_EXPRESSION_START, // {{
-    TOKEN_EXPRESSION_END,   // }}
-  TOKEN_INCLUDE,          // include
-  TOKEN_FOR,              // for
-  TOKEN_ENDFOR,           // endfor
-  TOKEN_IN,               // in
-  TOKEN_IDENTIFIER,       // similar to C variable name restrictions
-  TOKEN_COLLECTION_PAGE,  // all_pages
-  TOKEN_COLLECTION_POST,  // all_posts
-  TOKEN_PATH,             // Path between double quotes "foo/bar"
-  TOKEN_UNKNOWN           = -1,     // Any unknown token 
-  TOKEN_EOF               = -2,     // EOF
+    TOKEN_ASSIGN            = 0,   // =
+    TOKEN_EOL               = 1,   // \n
+    TOKEN_EXPRESSION_START  = 2,   // {{
+    TOKEN_EXPRESSION_END    = 3,   // }}
+    TOKEN_INCLUDE           = 4,   // include
+    TOKEN_FOR               = 5,   // for
+    TOKEN_ENDFOR            = 6,   // endfor
+    TOKEN_IN                = 7,   // in
+    TOKEN_IDENTIFIER        = 8,   // similar to C variable name restrictions
+    TOKEN_COLLECTION_PAGE   = 9,   // all_pages
+    TOKEN_COLLECTION_POST   = 10,  // all_posts
+    TOKEN_PATH              = 11,  // Path between double quotes "foo/bar"
+    TOKEN_ORDERBY_ASC       = 12,  // orderby_asc reserved word
+    TOKEN_ORDERBY_DESC      = 13,  // orderby_desc reserved word
+    TOKEN_UNKNOWN           = -1,  // Any unknown token 
+    TOKEN_EOF               = -2,  // EOF
   };
 
   Type type;
@@ -288,6 +413,14 @@ Token getToken(ParseContext& context)
     {
       token.type = Token::Type::TOKEN_COLLECTION_POST;
     }
+    else if (substrCompare((char*)"orderby_asc", token.start, token.end))
+    {
+      token.type = Token::Type::TOKEN_ORDERBY_ASC;
+    }
+    else if (substrCompare((char*)"orderby_desc", token.start, token.end))
+    {
+      token.type = Token::Type::TOKEN_ORDERBY_DESC;
+    }
     else
     {
       token.type = Token::Type::TOKEN_IDENTIFIER;
@@ -331,13 +464,18 @@ std::string& toLower(std::string& str)
   return str;
 }
 
+void logMismatchedTokenType(Token::Type expected, Token::Type found)
+{
+  logError("Unexpected token type '%d' while expecting '%d'\n", found, expected);
+}
+
 bool requireToken(ParseContext& context, Token::Type requiredType, Token* tokenFound = nullptr)
 {
   Token token = getToken(context);
   if(tokenFound) *tokenFound = token;
   if (token.type != requiredType)
   {
-    logError("Unexpected token type '%d' while expecting '%d'\n", token.type, requiredType);
+    logMismatchedTokenType(requiredType, token.type);
     return false;
   }
   return true;
@@ -495,7 +633,7 @@ bool parseExpression(ParseContext& context,
       }
       break;
 
-      // INCLUDE
+    // INCLUDE
     case Token::Type::TOKEN_INCLUDE:
       {
         if (!requireToken(context, Token::Type::TOKEN_PATH, &token))
@@ -515,8 +653,7 @@ bool parseExpression(ParseContext& context,
       }
       break;
 
-
-      // FOREACH
+    // FOREACH
     case Token::Type::TOKEN_FOR:
       {
         if (!requireToken(context, Token::Type::TOKEN_IDENTIFIER, &token))
@@ -531,25 +668,58 @@ bool parseExpression(ParseContext& context,
         Token::Type collectionType = token.type;
         size_t numIterations = 0;
 
+        //check for orderby_asc <field> or orderby_dec <field>
+        token = getToken(context);
+        Token orderByToken = Token();
+        Token::Type orderDirection = Token::Type::TOKEN_UNKNOWN;
+
+        bool shouldOrder = false;
+        if (token.type == Token::Type::TOKEN_ORDERBY_ASC 
+            || token.type == Token::Type::TOKEN_ORDERBY_DESC)
+        {
+          shouldOrder = true;
+          orderDirection = token.type;
+
+          if (!requireToken(context, Token::Type::TOKEN_IDENTIFIER, &orderByToken) 
+              || !requireToken(context, Token::Type::TOKEN_EXPRESSION_END, &token))
+          {
+            return false;
+          }
+        }
+        else if (token.type != Token::Type::TOKEN_EXPRESSION_END)
+        {
+          logMismatchedTokenType(Token::Type::TOKEN_EXPRESSION_END, token.type);
+          return false;
+        }
+
         if (collectionType == Token::Type::TOKEN_COLLECTION_PAGE)
         {
           numIterations = pageList.size();
+          if(shouldOrder)
+          {
+            std::string memberName = std::string(orderByToken.start, orderByToken.end);
+            bool ascending = orderDirection == Token::Type::TOKEN_ORDERBY_ASC;
+            Page::compareBy(memberName, ascending);
+            std::sort(pageList.begin(), pageList.end(), Page::sorting.compareFunction);
+          }
         }
         else if(collectionType == Token::Type::TOKEN_COLLECTION_POST)
         {
           numIterations = postList.size();
+          if (shouldOrder)
+          {
+            std::string memberName = std::string(orderByToken.start, orderByToken.end);
+            bool ascending = orderDirection == Token::Type::TOKEN_ORDERBY_ASC;
+            Post::compareBy(memberName, ascending);
+            std::sort(postList.begin(), postList.end(), Post::sorting.compareFunction);
+          }
         }
         else
           return false;
 
-        if (!requireToken(context, Token::Type::TOKEN_EXPRESSION_END, &token))
-        {
-          return false;
-        }
-
         char* blockSourceStart = token.end;
         size_t advance = 0;
-        if (numIterations > 0)
+        if (numIterations == 0)
         {
           // If we are iterating an empty list, we still need to parse the
           // contents of the block in order to find the matching {{endfor}}
@@ -563,7 +733,9 @@ bool parseExpression(ParseContext& context,
           variables[iteratorName + ".year"  ] = "undefined";
           variables[iteratorName + ".month" ] = "undefined";
           variables[iteratorName + ".day"   ] = "undefined";
+          variables[iteratorName + ".date"   ] = "undefined";
           variables[iteratorName + ".month_name"] = "undefined";
+
           std::ofstream dummy;
           advance = processSource(dummy, templateRoot, variables, pageList, postList, blockSourceStart, context.eof);
         }
@@ -586,6 +758,7 @@ bool parseExpression(ParseContext& context,
             variables[iteratorName + ".year"  ] = post.year;
             variables[iteratorName + ".month" ] = post.month;
             variables[iteratorName + ".day"   ] = post.day;
+            variables[iteratorName + ".date"   ] = post.day;
             variables[iteratorName + ".month_name"] = post.monthName;
           }
           else
@@ -603,7 +776,7 @@ bool parseExpression(ParseContext& context,
             return false;
           }
         }
-        
+
 
         // remove variables for this iteration
         variables.erase(iteratorName + ".title");

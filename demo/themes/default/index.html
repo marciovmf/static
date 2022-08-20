@@ -28,9 +28,9 @@
       </main>
       <nav>
         <div class="innertube">
-          <h3>Archive</h3>
+          <h3>Posts</h3>
           <ul>
-            {{for p in all_posts}}
+            {{for p in all_posts orderby_desc date}}
             <li><a href="{{p.url}}">{{p.title}}<time
                    datetime="{{p.year}}-{{p.month}}-{{p.day}}:00:00+02:00">{{p.year}}-{{p.month_name}}-{{p.day}}</time></a></li>
             {{endfor}}
