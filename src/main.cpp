@@ -14,9 +14,10 @@
 #include <algorithm>
 #include <any>
 
-#define logError(fmt, ...) printf("ERROR: "##fmt"", __VA_ARGS__)
-#define logInfoFmt(fmt, ...) printf("INFO: "##fmt"", __VA_ARGS__)
-#define logInfo(msg) printf("INFO: "##msg"")
+#define logErrorFmt(fmt, ...) printf("ERROR: " fmt, __VA_ARGS__)
+#define logError(msg) printf("ERROR: " msg)
+#define logInfoFmt(fmt, ...) printf("INFO: " fmt, __VA_ARGS__)
+#define logInfo(msg) printf("INFO: " msg)
 #define END_OF_FILE -1
 
 template<typename T>
@@ -61,15 +62,15 @@ struct Page
   {
     Page::sorting.ascending = ascending;
     if (member == "title")
-      Page::sorting.compareFunction = (CompareFunction) Page::compareByTitle;
+      Page::sorting.compareFunction = (CompareFunction<Page>) Page::compareByTitle;
     else if (member == "url")
-      Page::sorting.compareFunction = (CompareFunction) Page::compareByUrl;
+      Page::sorting.compareFunction = (CompareFunction<Page>) Page::compareByUrl;
     else if (member == "title")
-      Page::sorting.compareFunction = (CompareFunction) Page::compareByTitle;
+      Page::sorting.compareFunction = (CompareFunction<Page>) Page::compareByTitle;
     else
     {
-      logError("Unable to sort Page list by unknown property '%s'", member.c_str());
-      Page::sorting.compareFunction = (CompareFunction) Page::compareByTitle;
+      logErrorFmt("Unable to sort Page list by unknown property '%s'", member.c_str());
+      Page::sorting.compareFunction = (CompareFunction<Page>) Page::compareByTitle;
     }
   }
 };
@@ -97,9 +98,9 @@ struct Post : public Page
       std::string& monthName):
     Page(title, relativeUrl, sourceFileName, outFileName),
     layoutName(layoutName),
-    day(day),
-    month(month),
     year(year),
+    month(month),
+    day(day),
     monthName(monthName),
     yearInt(std::atoi(year.c_str())),
     monthInt(std::atoi(month.c_str())),
@@ -139,12 +140,12 @@ struct Post : public Page
   {
     if (Post::sorting.ascending)
       return a.yearInt < b.yearInt 
-        || a.yearInt == b.yearInt && a.monthInt < b.monthInt 
-        || a.yearInt == b.yearInt && a.monthInt == b.monthInt && a.dayInt < b.dayInt;
+        || (a.yearInt == b.yearInt && a.monthInt < b.monthInt)
+        || (a.yearInt == b.yearInt && a.monthInt == b.monthInt && a.dayInt < b.dayInt);
     else
       return a.yearInt > b.yearInt 
-        || a.yearInt == b.yearInt && a.monthInt > b.monthInt 
-        || a.yearInt == b.yearInt && a.monthInt == b.monthInt && a.dayInt > b.dayInt;
+        || (a.yearInt == b.yearInt && a.monthInt > b.monthInt )
+        || (a.yearInt == b.yearInt && a.monthInt == b.monthInt && a.dayInt > b.dayInt);
   }
 
   static bool compareByMonth(const Post& a, const Post& b)
@@ -176,8 +177,8 @@ struct Post : public Page
       Post::sorting.compareFunction = Post::compareByDate;
     else
     {
-      logError("Unable to sort Post list by unknown property '%s'", member.c_str());
-      Post::sorting.compareFunction = (CompareFunction) Post::compareByDate;
+      logErrorFmt("Unable to sort Post list by unknown property '%s'", member.c_str());
+      Post::sorting.compareFunction = (CompareFunction<Post>) Post::compareByDate;
     }
   }
 };
@@ -226,7 +227,7 @@ char* readFileToBuffer(const char* fileName, size_t* fileSize = nullptr)
   std::ifstream is(fileName, std::ifstream::binary);
   if(!is)
   {
-    logError("Could not open file '%s' for reading\n", fileName);
+    logErrorFmt("Could not open file '%s' for reading\n", fileName);
     return nullptr;
   }
 
@@ -291,7 +292,7 @@ bool isDigit(char c)
 
 bool isLetter(char c) 
 {
-  return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'); 
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); 
 }
 
 void skipWhiteSpace(ParseContext& context)
@@ -457,7 +458,7 @@ std::set<std::filesystem::path>* scanDirectory(std::filesystem::path& path, cons
 std::string& toLower(std::string& str)
 {
   size_t len = str.length();
-  for(int i=0; i < len; i++)
+  for(int i=0; i < (int)len; i++)
   {
     char c = str[i];
 
@@ -468,7 +469,7 @@ std::string& toLower(std::string& str)
 
 void logMismatchedTokenType(Token::Type expected, Token::Type found)
 {
-  logError("Unexpected token type '%d' while expecting '%d'\n", found, expected);
+  logErrorFmt("Unexpected token type '%d' while expecting '%d'\n", found, expected);
 }
 
 bool requireToken(ParseContext& context, Token::Type requiredType, Token* tokenFound = nullptr)
@@ -490,7 +491,7 @@ std::unordered_map<std::string, std::string>* loadSiteConfigFile(std::filesystem
   char* buffer = readFileToBuffer(fileName.c_str(), &bufferSize);
   if(! buffer)
   {
-    logError("Unable to open site config file '%s'\n", fileName.c_str());
+    logErrorFmt("Unable to open site config file '%s'\n", fileName.c_str());
     return nullptr;
   }
 
@@ -620,7 +621,7 @@ bool parseExpression(ParseContext& context,
         std::string variableValue = "UNDEFINED";
         if (it == variables.end())
         {
-          logError("Unknown variable '%.*s'\n", (int)identifierLen, token.start);
+          logErrorFmt("Unknown variable '%.*s'\n", (int)identifierLen, token.start);
         }
         else
         {
@@ -668,7 +669,7 @@ bool parseExpression(ParseContext& context,
 
         token = getToken(context);
         Token::Type collectionType = token.type;
-        size_t numIterations = 0;
+        int numIterations = 0;
 
         //check for orderby_asc <field> or orderby_dec <field>
         token = getToken(context);
@@ -696,7 +697,7 @@ bool parseExpression(ParseContext& context,
 
         if (collectionType == Token::Type::TOKEN_COLLECTION_PAGE)
         {
-          numIterations = pageList.size();
+          numIterations = (int) pageList.size();
           if(shouldOrder)
           {
             std::string memberName = std::string(orderByToken.start, orderByToken.end);
@@ -707,7 +708,7 @@ bool parseExpression(ParseContext& context,
         }
         else if(collectionType == Token::Type::TOKEN_COLLECTION_POST)
         {
-          numIterations = postList.size();
+          numIterations = (int) postList.size();
           if (shouldOrder)
           {
             std::string memberName = std::string(orderByToken.start, orderByToken.end);
@@ -880,7 +881,7 @@ bool processPage(
   std::ofstream outStream(outputFileName);
   if(!outStream.is_open())
   {
-    logError("Could not write to file %s\n", outputFileName.c_str());
+    logErrorFmt("Could not write to file %s\n", outputFileName.c_str());
     return false;
   }
 
@@ -889,7 +890,7 @@ bool processPage(
   char* sourceEnd = sourceStart + fileSize;
   if(!sourceStart)
   {
-    logError("Unable to read from template '%s'", sourceFileName.c_str());
+    logErrorFmt("Unable to read from template '%s'", sourceFileName.c_str());
     outStream.close();
     return false;
   }
@@ -898,7 +899,7 @@ bool processPage(
 
   if (!result)
   {
-    logError("Failed to process '%s'\n", sourceFileName.c_str());
+    logErrorFmt("Failed to process '%s'\n", sourceFileName.c_str());
   }
 
   delete[] sourceStart;
@@ -979,7 +980,7 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
       if (dayValue == 0 || monthValue == 0 || yearValue == 0 || dayValue > 30 || monthValue > 12)
       {
         hasWarnings = true;
-        logError("Invalid date format on content file '%s'.\n", fileName.c_str());
+        logErrorFmt("Invalid date format on content file '%s'.\n", fileName.c_str());
       }
 
       // Does it have a valid layout ?
@@ -988,12 +989,12 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
       if (layoutFiles->find(layoutFileName) == layoutFiles->end())
       {
         hasWarnings = true;
-        logError("Invalid Layout file referenced on content file '%s'.\n", fileName.c_str());
+        logErrorFmt("Invalid Layout file referenced on content file '%s'.\n", fileName.c_str());
       }
 
       if (hasWarnings)
       {
-        logError("Skipping file '%s'.\n", fileName.c_str());
+        logErrorFmt("Skipping file '%s'.\n", fileName.c_str());
         hasWarnings = false;
         continue;
       }
