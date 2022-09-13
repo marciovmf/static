@@ -14,9 +14,9 @@
 #include <algorithm>
 #include <any>
 
-#define logError(fmt, ...) printf("ERROR: "##fmt"", __VA_ARGS__)
-#define logInfoFmt(fmt, ...) printf("INFO: "##fmt"", __VA_ARGS__)
-#define logInfo(msg) printf("INFO: "##msg"")
+#define logError(fmt, ...) printf("ERROR: " fmt, __VA_ARGS__)
+#define logInfoFmt(fmt, ...) printf("INFO: " fmt"", __VA_ARGS__)
+#define logInfo(msg) printf("INFO: " msg"")
 #define END_OF_FILE -1
 
 template<typename T>
@@ -61,15 +61,15 @@ struct Page
   {
     Page::sorting.ascending = ascending;
     if (member == "title")
-      Page::sorting.compareFunction = (CompareFunction) Page::compareByTitle;
+      Page::sorting.compareFunction = (CompareFunction<Page>) Page::compareByTitle;
     else if (member == "url")
-      Page::sorting.compareFunction = (CompareFunction) Page::compareByUrl;
+      Page::sorting.compareFunction = (CompareFunction<Page>) Page::compareByUrl;
     else if (member == "title")
-      Page::sorting.compareFunction = (CompareFunction) Page::compareByTitle;
+      Page::sorting.compareFunction = (CompareFunction<Page>) Page::compareByTitle;
     else
     {
       logError("Unable to sort Page list by unknown property '%s'", member.c_str());
-      Page::sorting.compareFunction = (CompareFunction) Page::compareByTitle;
+      Page::sorting.compareFunction = (CompareFunction<Page>) Page::compareByTitle;
     }
   }
 };
@@ -97,9 +97,9 @@ struct Post : public Page
       std::string& monthName):
     Page(title, relativeUrl, sourceFileName, outFileName),
     layoutName(layoutName),
-    day(day),
-    month(month),
     year(year),
+    month(month),
+    day(day),
     monthName(monthName),
     yearInt(std::atoi(year.c_str())),
     monthInt(std::atoi(month.c_str())),
@@ -139,12 +139,12 @@ struct Post : public Page
   {
     if (Post::sorting.ascending)
       return a.yearInt < b.yearInt 
-        || a.yearInt == b.yearInt && a.monthInt < b.monthInt 
-        || a.yearInt == b.yearInt && a.monthInt == b.monthInt && a.dayInt < b.dayInt;
+        || (a.yearInt == b.yearInt && a.monthInt < b.monthInt )
+        || (a.yearInt == b.yearInt && a.monthInt == b.monthInt && a.dayInt < b.dayInt);
     else
       return a.yearInt > b.yearInt 
-        || a.yearInt == b.yearInt && a.monthInt > b.monthInt 
-        || a.yearInt == b.yearInt && a.monthInt == b.monthInt && a.dayInt > b.dayInt;
+        || (a.yearInt == b.yearInt && a.monthInt > b.monthInt )
+        || (a.yearInt == b.yearInt && a.monthInt == b.monthInt && a.dayInt > b.dayInt);
   }
 
   static bool compareByMonth(const Post& a, const Post& b)
@@ -177,7 +177,7 @@ struct Post : public Page
     else
     {
       logError("Unable to sort Post list by unknown property '%s'", member.c_str());
-      Post::sorting.compareFunction = (CompareFunction) Post::compareByDate;
+      Post::sorting.compareFunction = (CompareFunction<Post>) Post::compareByDate;
     }
   }
 };
@@ -291,7 +291,7 @@ bool isDigit(char c)
 
 bool isLetter(char c) 
 {
-  return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'); 
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); 
 }
 
 void skipWhiteSpace(ParseContext& context)
@@ -457,7 +457,7 @@ std::set<std::filesystem::path>* scanDirectory(std::filesystem::path& path, cons
 std::string& toLower(std::string& str)
 {
   size_t len = str.length();
-  for(int i=0; i < len; i++)
+  for(size_t i=0; i < len; i++)
   {
     char c = str[i];
 
@@ -742,7 +742,7 @@ bool parseExpression(ParseContext& context,
           advance = processSource(dummy, templateRoot, variables, pageList, postList, blockSourceStart, context.eof);
         }
 
-        for(int i=0; i < numIterations; i++)
+        for(size_t i=0; i < numIterations; i++)
         {
           if (collectionType == Token::Type::TOKEN_COLLECTION_PAGE)
           {
