@@ -920,8 +920,8 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
   std::filesystem::path siteConfigFile = inputDirectory / "site.txt";
   std::unordered_map<std::string, std::string>* variablesPtr = loadSiteConfigFile(siteConfigFile);
   std::unordered_map<std::string, std::string>& variables = *variablesPtr;
-  std::filesystem::path templateDirectory = inputDirectory / variables["site.template_dir"]; 
-  std::filesystem::path postsDirectory = inputDirectory / variables["site.posts_src_dir"]; 
+  std::filesystem::path templateDirectory = variables["site.template_dir"]; 
+  std::filesystem::path postsDirectory = variables["site.posts_src_dir"]; 
   std::filesystem::path layoutDirectory = templateDirectory / "layout";
 
   // Collect Page info
