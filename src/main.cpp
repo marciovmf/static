@@ -552,22 +552,24 @@ std::unordered_map<std::string, std::string>* loadSiteConfigFile(std::filesystem
     variables[sKey] = sValue;
   }
 
-  // if templates and posts path is not absolute, make it relative to site.txt file
-  std::filesystem::path templatePath = siteConfigFile;
-  templatePath.remove_filename();
+  std::filesystem::path siteRootFolder = siteConfigFile;
+  siteRootFolder.remove_filename();
 
-  if (templatePath.is_relative())
+  // if templates dir is not absolute, consider it's relative to site.txt folder location
+  std::filesystem::path templatesDir = variables["site.template_dir"];
+  if (templatesDir.is_relative())
   {
-    templatePath.append(variables["site.template_dir"]);
-    variables["site.template_dir"] = templatePath.string();
+    templatesDir = siteRootFolder / templatesDir;
+    variables["site.template_dir"] = templatesDir.string();
   }
 
-  std::filesystem::path postsPath = siteConfigFile;
-  postsPath.remove_filename();
-  if (postsPath.is_relative())
+  // if posts_src dir is not absolute, consider it's relative to site.txt folder location
+  std::filesystem::path postsSrcDir = variables["site.posts_src_dir"];
+  postsSrcDir.remove_filename();
+  if (postsSrcDir.is_relative())
   {
-    postsPath.append(variables["site.posts_src_dir"]);
-    variables["site.posts_src_dir"] = postsPath.string();
+    postsSrcDir = siteRootFolder / postsSrcDir;
+    variables["site.posts_src_dir"] = postsSrcDir.string();
   }
 
   delete buffer;
