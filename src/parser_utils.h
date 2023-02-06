@@ -47,9 +47,9 @@ char* readFileToBuffer(const char* fileName, size_t* fileSize = nullptr);
 
 bool substrCompare(char* str, char* start, char* end);
 
-inline bool isEof(ParseContext& context);
+bool isEof(ParseContext& context);
 
-inline bool isWhiteSpace(char c); 
+bool isWhiteSpace(char c); 
 
 char getc(ParseContext& context);
 

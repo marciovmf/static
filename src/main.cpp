@@ -780,21 +780,14 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
     std::string layoutFileName = (layoutDirectory / post.layoutName).concat(".html").string();
     std::string outputFileName = (outputDirectory / post.relativeUrl).string();
 
-    if (contentSource == nullptr)
-    {
-      hasErrors = true;
-      break;
-    }
-
-    //TODO(marcio): Parse markdown here
-    std::string mdSource = std::string(contentSource, contentSourceSize);
-    std::string htmlSource = markdown::markdownToHtml(contentSource, contentSource + contentSourceSize);
+    //TODO(marcio): check if MD file exists
+    std::string htmlSource = markdownToHtml(post.sourceFileName);
 
     // Export each post data as a "post.xxx" variable
     variables["post.title"] = post.title;
     variables["post.layout"] = post.layoutName;
     variables["post.url"] = post.relativeUrl;
-    //variables["post.body"] = std::string(contentSource, contentSourceSize);
+    variables["post.body"] = htmlSource;
     variables["post.body"] = htmlSource;
     variables["post.year"] = post.year;
     variables["post.month"] = post.month;
@@ -841,32 +834,6 @@ int main(int argc, char** argv)
     printf("%s <path_to_site_folder> <output_directory>\n", argv[0]);
     return 0;
   }
-
-  /*
-  MDParagraphNode paragraph("Hey, this is a paragraph!");
-  MDHeaderNode header1(1, "This is a large header");
-  MDHeaderNode header2(2, "This is a smaller header");
-  MDListNode ulist(1);
-  MDListNode olist;
-
-  MDNode item1("item 1");
-  MDNode item2("item 2");
-  MDNode item3("item 3");
-
-  ulist.addChildNode(item1);
-  ulist.addChildNode(item2);
-  ulist.addChildNode(item3);
-
-  olist.addChildNode(item1);
-  olist.addChildNode(item2);
-  olist.addChildNode(item3);
-
-  std::cout << header1.toString() << std::endl;
-  std::cout << paragraph.toString() << std::endl;
-  std::cout << header2.toString() << std::endl;
-  std::cout << ulist.toString() << std::endl;
-  std::cout << olist.toString() << std::endl;
-  */
 
   return generateSite(std::filesystem::path(argv[1]), std::filesystem::path(argv[2]));
 }

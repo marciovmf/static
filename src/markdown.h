@@ -4,9 +4,6 @@
 #include <string>
 struct ParseContext;
 
-namespace markdown
-{
-  std::string markdownToHtml(char* sourceStart, char* sourceEnd);
-}
+std::string markdownToHtml(std::string source);
 
 #endif  //MARKDOWN
