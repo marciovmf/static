@@ -1,3 +1,7 @@
+//FIXME(marcio): This post file causes the program to crash because of it's name! 'Post-20180108-Input de joystick com XInput.md'
+//TODO(marcio): It's running slow. Make it faster!
+//TODO(marcio): It's not outputting underscore character on some posts
+//TODO(marcio): Implement lists
 
 #include <iostream>
 #include <fstream>
@@ -9,11 +13,39 @@ using namespace std;
 string getEmphasis(string);
 string getImage(string);
 string getLink(string);
-
+string replaceScapeSequences(string);
 
 string getSpanLevelFormatting(string line)
 {
-  return  getEmphasis(getLink(getImage(line)));
+  return getEmphasis(replaceScapeSequences(getLink(getImage(line))));
+}
+
+string replaceScapeSequences(string line)
+{
+  size_t pos = line.find("\\");
+  while (pos != string::npos)
+  {
+    if(line[pos+1] == '_')
+      line.replace(pos, 2, "&#95;");
+    else if(line[pos+1] == '[')
+      line.replace(pos, 2, "&#91;");
+    else if(line[pos+1] == ']')
+      line.replace(pos, 2, "&#93;");
+    else if(line[pos+1] == '<')
+      line.replace(pos, 2, "&lt;");
+    else if(line[pos+1] == '>')
+      line.replace(pos, 2, "&gt;");
+    else if(line[pos+1] == '(')
+      line.replace(pos, 2, "&#10098;");
+    else if(line[pos+1] == ')')
+      line.replace(pos, 2, "&#10099;");
+    else if(line[pos+1] == '\\')
+      line.replace(pos, 2, "&#92;");
+
+    pos = line.find("\\", pos+1);
+  }
+
+  return line;
 }
 
 string getHeader(string line) 
@@ -35,7 +67,7 @@ string getListItem(string line)
 
 string getLink(string line) 
 {
-  regex pattern("(.*)\\[(.*)\\]\\((.*)\\)(.*)");
+  static regex pattern("(.*)\\[(.*)\\]\\((.*)\\)(.*)");
   smatch match;
 
   if (regex_search(line, match, pattern)) 
@@ -47,7 +79,7 @@ string getLink(string line)
 
 string getImage(string line) 
 {
-  regex pattern("(.*)!\\[(.*)\\]\\((.*)\\)(.*)");
+  static regex pattern("(.*)!\\[(.*)\\]\\((.*)\\)(.*)");
   smatch match;
   if (regex_search(line, match, pattern)) 
   {
@@ -58,14 +90,14 @@ string getImage(string line)
 
 string getEmphasis(string line) 
 {
-  regex pattern("(\\*\\*)(.*?)\\1");
-  line = regex_replace(line, pattern, "<strong>$2</strong>");
+  static regex strongPattern("(\\*\\*)(.*?)\\1");
+  line = regex_replace(line, strongPattern, "<strong>$2</strong>");
 
-  pattern = "(\\_|\\*)(.*?)\\1";
-  line = regex_replace(line, pattern, "<em>$2</em>");
+  static regex emPattern("(\\_|\\*)(.*?)\\1");
+  line = regex_replace(line, emPattern, "<em>$2</em>");
 
-  pattern = "(\\~\\~)(.*?)\\1";
-  line = regex_replace(line, pattern, "<s>$2</s>");
+  static regex strikPattern("(\\~\\~)(.*?)\\1");
+  line = regex_replace(line, strikPattern, "<s>$2</s>");
 
   return line;
 }
