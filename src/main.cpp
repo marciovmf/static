@@ -13,11 +13,9 @@
 #include <cctype>
 #include <algorithm>
 #include <any>
-
-#define logError(fmt, ...) printf("ERROR: " fmt, __VA_ARGS__)
-#define logInfoFmt(fmt, ...) printf("INFO: " fmt"", __VA_ARGS__)
-#define logInfo(msg) printf("INFO: " msg"")
-#define END_OF_FILE -1
+#include <chrono>
+#include "parser_utils.h"
+#include "markdown.h"
 
 template<typename T>
 using CompareFunction = bool(*)(const T&, const T&);
@@ -29,6 +27,7 @@ struct SortingInformation
   CompareFunction<T> compareFunction = nullptr;
   SortingInformation<T>(CompareFunction<T> f):compareFunction(f) {}
 };
+
 
 // site structure
 struct Page
@@ -110,14 +109,14 @@ struct Post : public Page
   bool isAttribute(std::string& attributeName) 
   {
     return attributeName == "title" 
-        || attributeName == "relativeUrl"
-        || attributeName == "title"
-        || attributeName == "url"
-        || attributeName == "layout"
-        || attributeName == "year"
-        || attributeName == "month"
-        || attributeName == "day"
-        || attributeName == "month_name";
+      || attributeName == "relativeUrl"
+      || attributeName == "title"
+      || attributeName == "url"
+      || attributeName == "layout"
+      || attributeName == "year"
+      || attributeName == "month"
+      || attributeName == "day"
+      || attributeName == "month_name";
   }
 
   static bool compareByTitle(const Post& a, const Post& b)
@@ -185,252 +184,6 @@ struct Post : public Page
 SortingInformation<Page> Page::sorting = SortingInformation<Page>(Page::compareByTitle);
 SortingInformation<Post> Post::sorting = SortingInformation<Post>(Post::compareByDate);
 
-// parsing
-struct Token
-{
-  enum Type
-  {
-    TOKEN_ASSIGN            = 0,   // =
-    TOKEN_EOL               = 1,   // \n
-    TOKEN_EXPRESSION_START  = 2,   // {{
-    TOKEN_EXPRESSION_END    = 3,   // }}
-    TOKEN_INCLUDE           = 4,   // include
-    TOKEN_FOR               = 5,   // for
-    TOKEN_ENDFOR            = 6,   // endfor
-    TOKEN_IN                = 7,   // in
-    TOKEN_IDENTIFIER        = 8,   // similar to C variable name restrictions
-    TOKEN_COLLECTION_PAGE   = 9,   // all_pages
-    TOKEN_COLLECTION_POST   = 10,  // all_posts
-    TOKEN_PATH              = 11,  // Path between double quotes "foo/bar"
-    TOKEN_ORDERBY_ASC       = 12,  // orderby_asc reserved word
-    TOKEN_ORDERBY_DESC      = 13,  // orderby_desc reserved word
-    TOKEN_UNKNOWN           = -1,  // Any unknown token 
-    TOKEN_EOF               = -2,  // EOF
-  };
-
-  Type type;
-  char* start;
-  char* end;
-};
-
-struct ParseContext
-{
-  const char* fileName;
-  const char* source;
-  char* eof;
-  char* p;
-};
-
-char* readFileToBuffer(const char* fileName, size_t* fileSize = nullptr)
-{
-  std::ifstream is(fileName, std::ifstream::binary);
-  if(!is)
-  {
-    logError("Could not open file '%s' for reading\n", fileName);
-    return nullptr;
-  }
-
-  is.seekg (0, is.end);
-  size_t length = is.tellg();
-  is.seekg (0, is.beg);
-
-  if(fileSize)
-    *fileSize = length;
-
-  char* buffer = new char[length];
-  is.read (buffer,length);
-  is.close();
-  return buffer;
-}
-
-bool substrCompare(char* str, char* start, char* end)
-{
-  const int len = (int)(end - start);
-  for(int i=0; i < len; i++)
-  {
-    if (*str == 0 || *str != tolower(*start))
-    {
-      return false;
-    }
-    ++start;
-    ++str;
-  }
-  return true;
-}
-
-inline bool isEof(ParseContext& context) 
-{
-  return context.p >= context.eof; 
-}
-
-inline bool isWhiteSpace(char c) 
-{
-  return c == ' ' || c == '\t'; 
-}
-
-char getc(ParseContext& context)
-{
-  if(isEof(context))
-    return END_OF_FILE;
-
-  return *(context.p++);
-}
-
-char peek(ParseContext& context)
-{
-  if(isEof(context))
-    return END_OF_FILE;
-
-  return *(context.p);
-}
-
-bool isDigit(char c) 
-{
-  return (c >= '0' && c <= '9');
-}
-
-bool isLetter(char c) 
-{
-  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); 
-}
-
-void skipWhiteSpace(ParseContext& context)
-{
-  while(isWhiteSpace(*context.p))
-  {
-    getc(context);
-  }
-}
-
-Token getToken(ParseContext& context)
-{
-  skipWhiteSpace(context);
-  Token token;
-
-  if (isEof(context))
-  {
-    token.type = Token::Type::TOKEN_EOF;
-    return token;
-  }
-
-  token.type = Token::Type::TOKEN_UNKNOWN;
-  token.start = context.p;
-  token.end = token.start;
-  char c = getc(context);
-  char nextc = peek(context);
-
-  // TOKEN_EXPRESSOIN_START
-  if (c == '{' && nextc == '{')
-  {
-    getc(context);
-    token.type = Token::Type::TOKEN_EXPRESSION_START;
-    token.end+=2;
-    return token;
-  }
-
-  // TOKEN_EXPRESSOIN_END
-  if (c == '}' && nextc == '}')
-  {
-    getc(context);
-    token.type = Token::Type::TOKEN_EXPRESSION_END;
-    token.end+=2;
-    return token;
-  }
-
-  // TOKEN_ASSIGN
-  if (c == '=')
-  {
-    getc(context);
-    token.type = Token::Type::TOKEN_ASSIGN;
-    token.end++;
-    return token;
-  }
-
-  // TOKEN_EOL \n
-  if (c == '\n')
-  {
-    getc(context);
-    token.type = Token::Type::TOKEN_EOL;
-    token.end++;
-    return token;
-  }
-
-  if (c == '\r' && nextc == '\n')
-  {
-    getc(context);
-    token.type = Token::Type::TOKEN_EOL;
-    token.end+=2;
-    return token;
-  }
-
-  // TOKEN_PATH
-  if (c == '\"')
-  {
-    ++token.start; // skip starting double quotes
-    do{
-      if (isEof(context))
-      {
-        // unexpected EOF while while parsing PATH token;
-        token.type = Token::Type::TOKEN_UNKNOWN; 
-        return token;
-      }
-      c = getc(context);
-      ++token.end;
-    } while (c != '\"');
-
-    token.type = Token::Type::TOKEN_PATH;
-    return token;
-  }
-
-  if (isLetter(c) || c == '_')
-  {
-    while(isLetter(c) || isDigit(c) || c == '_' || c == '-' || c == '.')
-    {
-      ++token.end;
-      c = getc(context);
-    }
-    context.p--;
-
-    if (substrCompare((char*)"for", token.start, token.end))
-    {
-      token.type = Token::Type::TOKEN_FOR;
-    }
-    else if (substrCompare((char*)"endfor", token.start, token.end))
-    {
-      token.type = Token::Type::TOKEN_ENDFOR;
-    }
-    else if (substrCompare((char*)"in", token.start, token.end))
-    {
-      token.type = Token::Type::TOKEN_IN;
-    }
-    else if (substrCompare((char*)"include", token.start, token.end))
-    {
-      token.type = Token::Type::TOKEN_INCLUDE;
-    }
-    else if (substrCompare((char*)"all_pages", token.start, token.end))
-    {
-      token.type = Token::Type::TOKEN_COLLECTION_PAGE;
-    }
-    else if (substrCompare((char*)"all_posts", token.start, token.end))
-    {
-      token.type = Token::Type::TOKEN_COLLECTION_POST;
-    }
-    else if (substrCompare((char*)"orderby_asc", token.start, token.end))
-    {
-      token.type = Token::Type::TOKEN_ORDERBY_ASC;
-    }
-    else if (substrCompare((char*)"orderby_desc", token.start, token.end))
-    {
-      token.type = Token::Type::TOKEN_ORDERBY_DESC;
-    }
-    else
-    {
-      token.type = Token::Type::TOKEN_IDENTIFIER;
-    }
-  }
-
-  return token;
-}
 
 std::set<std::filesystem::path>* scanDirectory(std::filesystem::path& path, const char* extension)
 {
@@ -565,7 +318,6 @@ std::unordered_map<std::string, std::string>* loadSiteConfigFile(std::filesystem
 
   // if posts_src dir is not absolute, consider it's relative to site.txt folder location
   std::filesystem::path postsSrcDir = variables["site.posts_src_dir"];
-  postsSrcDir.remove_filename();
   if (postsSrcDir.is_relative())
   {
     postsSrcDir = siteRootFolder / postsSrcDir;
@@ -583,6 +335,8 @@ std::unordered_map<std::string, std::string>* loadSiteConfigFile(std::filesystem
 
   return variablesPtr;
 }
+
+// Markdown parsing
 
 size_t processSource(
     std::ofstream& outStream,
@@ -637,7 +391,7 @@ bool parseExpression(ParseContext& context,
       }
       break;
 
-    // INCLUDE
+      // INCLUDE
     case Token::Type::TOKEN_INCLUDE:
       {
         if (!requireToken(context, Token::Type::TOKEN_PATH, &token))
@@ -657,7 +411,7 @@ bool parseExpression(ParseContext& context,
       }
       break;
 
-    // FOREACH
+      // FOREACH
     case Token::Type::TOKEN_FOR:
       {
         if (!requireToken(context, Token::Type::TOKEN_IDENTIFIER, &token))
@@ -910,6 +664,7 @@ bool processPage(
 
 int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&& outputDirectory)
 {
+  auto start = std::chrono::system_clock::now();
   std::vector<Page> pageList;
   std::vector<Post> postList;
   bool hasErrors = false;
@@ -948,7 +703,7 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
   variables["site.num_posts"] = std::to_string((int)postList.size());
 
   // Collect Content and Layout info
-  std::set<std::filesystem::path>* postFiles = scanDirectory(postsDirectory, ".html");
+  std::set<std::filesystem::path>* postFiles = scanDirectory(postsDirectory, ".md");
   std::set<std::filesystem::path>* layoutFiles = scanDirectory(layoutDirectory, ".html");
 
   if (postFiles)
@@ -960,7 +715,7 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
       std::string layoutName = fileName.substr(0, fileName.find("-"));
       std::string timestamp  = fileName.substr(layoutName.length() + 1, 8); //AAAAMMDD = 8 chars
       const size_t layoutNameLen = layoutName.length();
-      const size_t titleLen = fileName.length() - layoutNameLen - 10 - 5; // -AAAAMMDD- = 10 chars; .html = 5 chars
+      const size_t titleLen = fileName.length() - layoutNameLen - 10 - 3; // -AAAAMMDD- = 10 chars; .md = 3 chars
 
       // Fill in the content data
       std::string title = fileName.substr(layoutName.length() + 10, titleLen);
@@ -1027,17 +782,15 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
     std::string layoutFileName = (layoutDirectory / post.layoutName).concat(".html").string();
     std::string outputFileName = (outputDirectory / post.relativeUrl).string();
 
-    if (contentSource == nullptr)
-    {
-      hasErrors = true;
-      break;
-    }
+    //TODO(marcio): check if MD file exists
+    std::string htmlSource = markdownToHtml(post.sourceFileName);
 
     // Export each post data as a "post.xxx" variable
     variables["post.title"] = post.title;
     variables["post.layout"] = post.layoutName;
     variables["post.url"] = post.relativeUrl;
-    variables["post.body"] = std::string(contentSource, contentSourceSize);
+    variables["post.body"] = htmlSource;
+    variables["post.body"] = htmlSource;
     variables["post.year"] = post.year;
     variables["post.month"] = post.month;
     variables["post.day"] = post.day;
@@ -1046,9 +799,7 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
     variables["page.title"] = post.title;
     variables["page.url"] = post.relativeUrl;
 
-
     // we need a "fake" page to pass to processPage
-    //Page page(content.title, content.relativeUrl, layoutFileName);
     bool success = processPage(
         templateDirectory,
         layoutFileName,
@@ -1068,6 +819,9 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
   if (hasWarnings)
     return 1;
 
+  auto end = std::chrono::system_clock::now();
+  auto markdownProcessTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+  logInfoFmt("Site generated in %ldms\n", (long) markdownProcessTime);
 
   logInfo("Copying assets ...\n");
   std::filesystem::copy(templateDirectory / "assets", outputDirectory / "assets",

@@ -2,7 +2,13 @@ cmake_minimum_required(VERSION 3.18)
 set(CMAKE_CXX_STANDARD 20)
 set(PROJECT_NAME static)
 Project(${PROJECT_NAME})
-list(APPEND SOURCES main.cpp)
+list(APPEND SOURCES 
+  main.cpp
+  markdown.cpp
+  markdown.h
+  parser_utils.cpp
+  parser_utils.h)
+
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 set(VERSION_MAJOR 0)
