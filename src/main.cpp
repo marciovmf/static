@@ -13,6 +13,7 @@
 #include <cctype>
 #include <algorithm>
 #include <any>
+#include <chrono>
 #include "parser_utils.h"
 #include "markdown.h"
 
@@ -663,6 +664,7 @@ bool processPage(
 
 int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&& outputDirectory)
 {
+  auto start = std::chrono::system_clock::now();
   std::vector<Page> pageList;
   std::vector<Post> postList;
   bool hasErrors = false;
@@ -817,6 +819,9 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
   if (hasWarnings)
     return 1;
 
+  auto end = std::chrono::system_clock::now();
+  auto markdownProcessTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+  logInfoFmt("Site generated in %ldms\n", (long) markdownProcessTime);
 
   logInfo("Copying assets ...\n");
   std::filesystem::copy(templateDirectory / "assets", outputDirectory / "assets",

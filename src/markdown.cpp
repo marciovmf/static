@@ -1,5 +1,3 @@
-//FIXME(marcio): This post file causes the program to crash because of it's name! 'Post-20180108-Input de joystick com XInput.md'
-//TODO(marcio): It's running slow. Make it faster!
 //TODO(marcio): It's not outputting underscore character on some posts
 //TODO(marcio): Implement lists
 
@@ -10,15 +8,7 @@
 
 using namespace std;
 
-string getEmphasis(string);
-string getImage(string);
-string getLink(string);
-string replaceScapeSequences(string);
-
-string getSpanLevelFormatting(string line)
-{
-  return getEmphasis(replaceScapeSequences(getLink(getImage(line))));
-}
+string getSpanLevelFormatting(const string& line);
 
 string replaceScapeSequences(string line)
 {
@@ -65,43 +55,55 @@ string getListItem(string line)
   return "<li>" + getSpanLevelFormatting(line.substr(3)) + "</li>";
 }
 
-string getLink(string line) 
+string getLink(const string&& line) 
 {
-  static regex pattern("(.*)\\[(.*)\\]\\((.*)\\)(.*)");
   smatch match;
 
-  if (regex_search(line, match, pattern)) 
+  if(line.find("[") != string::npos)
   {
-    line = getLink(match[1].str()) + "<a href=\"" + match[3].str() + "\">" + match[2].str() + "</a>" + getLink(match[4].str());
+    static regex pattern("(.*)\\[(.*)\\]\\((.*)\\)(.*)");
+    if (regex_search(line, match, pattern)) 
+    {
+      return getLink(match[1].str()) + "<a href=\"" + match[3].str() + "\">" + match[2].str() + "</a>" + getLink(match[4].str());
+    }
   }
   return line;
 }
 
-string getImage(string line) 
+string getImage(const string& line) 
 {
-  static regex pattern("(.*)!\\[(.*)\\]\\((.*)\\)(.*)");
   smatch match;
-  if (regex_search(line, match, pattern)) 
+
+  if(line.find("![") != string::npos)
   {
-    line = match[1].str() + "<img src=\"" + match[3].str() + "\" alt=\"" + match[2].str() + "\">" + match[4].str();
+    static regex pattern("(.*)!\\[(.*)\\]\\((.*)\\)(.*)");
+    if (regex_search(line, match, pattern)) 
+    {
+      return match[1].str() + "<img src=\"" + match[3].str() + "\" alt=\"" + match[2].str() + "\">" + match[4].str();
+    }
   }
   return line;
 }
 
-string getEmphasis(string line) 
+string getEmphasis(const string&& line) 
 {
-  static regex strongPattern("(\\*\\*)(.*?)\\1");
-  line = regex_replace(line, strongPattern, "<strong>$2</strong>");
-
-  static regex emPattern("(\\_|\\*)(.*?)\\1");
-  line = regex_replace(line, emPattern, "<em>$2</em>");
-
-  static regex strikPattern("(\\~\\~)(.*?)\\1");
-  line = regex_replace(line, strikPattern, "<s>$2</s>");
+  if (line.find_first_of("*_~") != string::npos)
+  {
+    static regex strongPattern("(\\*\\*)(.*?)\\1");
+    string result = regex_replace(line, strongPattern, "<strong>$2</strong>");
+    static regex emPattern("(\\_|\\*)(.*?)\\1");
+    result = regex_replace(result, emPattern, "<em>$2</em>");
+    static regex strikPattern("(\\~\\~)(.*?)\\1");
+    result = regex_replace(result, strikPattern, "<s>$2</s>");
+  }
 
   return line;
 }
 
+string getSpanLevelFormatting(const string& line)
+{
+  return getEmphasis(replaceScapeSequences(getLink(getImage(line))));
+}
 
 string markdownToHtml(string sourceFile)
 {
