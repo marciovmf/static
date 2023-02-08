@@ -89,12 +89,13 @@ string getEmphasis(const string&& line)
 {
   if (line.find_first_of("*_~") != string::npos)
   {
-    static regex strongPattern("(\\*\\*)(.*?)\\1");
+    static regex strongPattern("(\\*\\*|\\_\\_)(.*?)\\1");
     string result = regex_replace(line, strongPattern, "<strong>$2</strong>");
     static regex emPattern("(\\_|\\*)(.*?)\\1");
     result = regex_replace(result, emPattern, "<em>$2</em>");
     static regex strikPattern("(\\~\\~)(.*?)\\1");
     result = regex_replace(result, strikPattern, "<s>$2</s>");
+    return result;
   }
 
   return line;
