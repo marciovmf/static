@@ -22,9 +22,10 @@ else()
   target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic -Werror)
 endif()
 
+
 install(TARGETS static DESTINATION static)
-install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../README.md" DESTINATION static)
-install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../demo/" DESTINATION static/demo)
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../README.md" DESTINATION "/")
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../demo/" DESTINATION "static/demo")
 set(CPACK_GENERATOR "ZIP")
 set(CPACK_PACKAGE_FILE_NAME static_${VERSION_STRING})
 set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)
