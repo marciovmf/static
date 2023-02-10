@@ -302,7 +302,7 @@ std::unordered_map<std::string, std::string>* loadSiteConfigFile(std::filesystem
 
     std::string sKey = std::string(key.start, key.end - key.start);
     std::string sValue = std::string(value.start, value.end - value.start);
-    variables[sKey] = sValue;
+    variables[sKey] = sValue;   
   }
 
   std::filesystem::path siteRootFolder = siteConfigFile;
@@ -755,69 +755,93 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
         continue;
       }
 
-      postList.emplace_back(title, relativeUrl, sourceFileName, outputFileName,
-          layoutName, day, month, year, monthName);
+
+      // check for title override in the first line of the file
+      std::ifstream postFile(sourceFileName);
+      if (postFile.is_open())
+      {
+        std::string line;
+        getline(postFile, line);
+        ParseContext context;
+        context.p = (char*) line.c_str();
+        context.eof = (char*) (context.p + line.length());
+
+        if ((getToken(context).type == Token::TOKEN_EXPRESSION_START))
+        {
+          Token tokenTitle;
+          if (requireToken(context, Token::TOKEN_PATH, &tokenTitle)
+              && requireToken(context, Token::TOKEN_EXPRESSION_END))
+          {
+            title = std::string(tokenTitle.start, tokenTitle.end - tokenTitle.start);
+          }
+          postFile.close();
+      }
     }
 
-    delete layoutFiles;
-    delete postFiles;
+
+    postList.emplace_back(title, relativeUrl, sourceFileName, outputFileName,
+        layoutName, day, month, year, monthName);
   }
 
-  for(Page& page : pageList)
-  {
-    logInfoFmt("Processing page %s\n", page.sourceFileName.c_str());
-    variables["page.title"] = page.title;
-    variables["page.url"] = page.relativeUrl;
-    processPage(templateDirectory, page.sourceFileName, page.outputFileName, pageList, postList, variables);
-  }
+  delete layoutFiles;
+  delete postFiles;
+}
 
-  for(Post& post : postList)
-  {
-    logInfoFmt("Processing post %s\n", post.sourceFileName.c_str());
+for(Page& page : pageList)
+{
+  logInfoFmt("Processing page %s\n", page.sourceFileName.c_str());
+  variables["page.title"] = page.title;
+  variables["page.url"] = page.relativeUrl;
+  processPage(templateDirectory, page.sourceFileName, page.outputFileName, pageList, postList, variables);
+}
 
-    // load content file
-    size_t contentSourceSize;
-    char* contentSource = readFileToBuffer(post.sourceFileName.c_str(), &contentSourceSize);
+for(Post& post : postList)
+{
+  logInfoFmt("Processing post %s\n", post.sourceFileName.c_str());
 
-    std::string layoutFileName = (layoutDirectory / post.layoutName).concat(".html").string();
-    std::string outputFileName = (outputDirectory / post.relativeUrl).string();
+  // load content file
+  size_t contentSourceSize;
+  char* contentSource = readFileToBuffer(post.sourceFileName.c_str(), &contentSourceSize);
 
-    //TODO(marcio): check if MD file exists
-    std::string htmlSource = markdownToHtml(post.sourceFileName);
+  std::string layoutFileName = (layoutDirectory / post.layoutName).concat(".html").string();
+  std::string outputFileName = (outputDirectory / post.relativeUrl).string();
 
-    // Export each post data as a "post.xxx" variable
-    variables["post.title"] = post.title;
-    variables["post.layout"] = post.layoutName;
-    variables["post.url"] = post.relativeUrl;
-    variables["post.body"] = htmlSource;
-    variables["post.body"] = htmlSource;
-    variables["post.year"] = post.year;
-    variables["post.month"] = post.month;
-    variables["post.day"] = post.day;
-    variables["post.month_name"] = post.monthName;
-    // Consider the template data as the page data
-    variables["page.title"] = post.title;
-    variables["page.url"] = post.relativeUrl;
+  //TODO(marcio): check if MD file exists
+  std::string htmlSource = markdownToHtml(post.sourceFileName);
 
-    // we need a "fake" page to pass to processPage
-    bool success = processPage(
-        templateDirectory,
-        layoutFileName,
-        outputFileName,
-        pageList,
-        postList,
-        variables);
-    delete[] contentSource;
+  // Export each post data as a "post.xxx" variable
+  variables["post.title"] = post.title;
+  variables["post.layout"] = post.layoutName;
+  variables["post.url"] = post.relativeUrl;
+  variables["post.body"] = htmlSource;
+  variables["post.body"] = htmlSource;
+  variables["post.year"] = post.year;
+  variables["post.month"] = post.month;
+  variables["post.day"] = post.day;
+  variables["post.month_name"] = post.monthName;
+  // Consider the template data as the page data
+  variables["page.title"] = post.title;
+  variables["page.url"] = post.relativeUrl;
 
-    if (! success)
-      hasErrors = true;
-  }
+  // we need a "fake" page to pass to processPage
+  bool success = processPage(
+      templateDirectory,
+      layoutFileName,
+      outputFileName,
+      pageList,
+      postList,
+      variables);
+  delete[] contentSource;
 
-  if (hasErrors)
-    return -1;
+  if (! success)
+    hasErrors = true;
+}
 
-  if (hasWarnings)
-    return 1;
+if (hasErrors)
+  return -1;
+
+if (hasWarnings)
+  return 1;
 
   auto end = std::chrono::system_clock::now();
   auto markdownProcessTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
@@ -830,7 +854,7 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
       );
   logInfo("Done\n");
   return 0;
-}
+  }
 
 int main(int argc, char** argv)
 {

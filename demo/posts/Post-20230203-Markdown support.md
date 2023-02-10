@@ -1,7 +1,15 @@
+{{"Markdown support!"}}
 
 Posts are now written in *Markdown* instead of plain *HTML* and I'll be slowly improving it's *Markdown* support
 
-## What's supported so far ?
+## What's supported so far
+
+### Lists
+
+* Item 1
+   * sub item 1
+* Item 2
+* Item 3
 
 ### Paragraphs
 

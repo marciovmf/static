@@ -59,7 +59,7 @@ string getLink(const string&& line)
 {
   smatch match;
 
-  if(line.find("[") != string::npos)
+  if(line.find("](") != string::npos)
   {
     static regex pattern("(.*)\\[(.*)\\]\\((.*)\\)(.*)");
     if (regex_search(line, match, pattern)) 
@@ -106,106 +106,163 @@ string getSpanLevelFormatting(const string& line)
   return getEmphasis(replaceScapeSequences(getLink(getImage(line))));
 }
 
+void skipIndent(string& line, int maxIndent)
+{
+  if (line.empty())
+    return;
+
+  int pos = 0;
+  int spaces = 0;
+  bool done = false;
+  do
+  {
+    char c = line[pos];
+    if (c == ' ')
+      { pos++; spaces++; }
+    else if (c == '\t')
+    { pos++; spaces += 4; }
+    else
+      done = true; 
+  }while(!done);
+
+  const int maxSpaces = (maxIndent + 1) * 4;
+  if (spaces < maxSpaces)
+  {
+    line.erase(0, spaces);
+  }
+}
+
+
+string processBlockElements(ifstream& source, int nested = 0)
+{
+  string line, html;
+  const string SIX_SPACES("      ");
+  while (getline(source, line)) 
+  {
+    if (line.empty()) continue;
+    skipIndent(line, nested);
+
+    if (line[0] == '#')
+    {
+      html += getHeader(line);
+    }
+    else if (line[0] == '*') 
+    {
+      html += "<ul>\n";
+      do 
+      {
+        line.erase(0, 1);
+        html += "<li>" + processBlockElements(source, nested++) + "</li>";
+        getline(source, line);
+      }
+      while (!line.empty());
+      html += "</ul>";
+
+      if (nested)
+        return html;
+    }
+    else if (line[0] == '1' && line[1] == '.') 
+    {
+      html += "<ol>\n" + getListItem(line) + "</ol>";
+    }
+    else if(line.starts_with(SIX_SPACES)) // 6 spaces means code block
+    {
+      string paragraph;
+      do
+      {
+        // It's only required to indent the first line. But if next lines are
+        // indented, we must trim the unnecessary spaces
+        if(line.starts_with(SIX_SPACES))
+          line.erase(0, 6);
+
+        paragraph += line + "\n";
+        getline(source, line);
+      }
+      while(!line.empty());
+      html += "<pre><code>" + paragraph + "</code></pre>";
+    }
+    else if(line[0] == '>')
+    {
+      string paragraph;
+      int depth = 0;
+      int indentCharIndex = 0;
+      int lineCount = 0;
+      do
+      {
+        int newDepth = 0;
+        for(int i = 0; i < line.length(); i++) 
+        {
+          if (line[i] == '>')
+          {
+            indentCharIndex = i + 1;
+            newDepth++;
+          }
+
+          if (line[i] == ' ')
+            continue;
+        }
+
+        if (newDepth > depth)
+        {
+          depth = newDepth;
+          paragraph += "<blockquote><p>";
+          lineCount = 0;
+        }
+
+        line.erase(0, indentCharIndex);
+        paragraph += (lineCount++ > 0) ? "<br>" + line : line;
+        getline(source, line);
+      }
+      while(!line.empty());
+
+
+      while(depth)
+      {
+        depth--;
+        paragraph += "</p></blockquote>";
+      }
+
+      html += paragraph;
+    }
+    else
+    {
+      string paragraph;
+      int lineCount = 0;
+
+      do
+      {
+        paragraph += 
+          lineCount++ ?
+          "<br>" + getSpanLevelFormatting(line):
+          getSpanLevelFormatting(line);
+
+        getline(source, line);
+      }
+      while(!line.empty());
+      html += "<p>" + paragraph + "</p>";
+    }
+  }
+  return html;
+}
+
 string markdownToHtml(string sourceFile)
 {
-  string line;
-  string html;
   ifstream markdownFile(sourceFile);
 
   if (markdownFile.is_open()) 
   {
-    while (getline(markdownFile, line)) 
+    // Skip first line if it is a title override
+    string line;
+    getline(markdownFile, line);
+    line.erase(0, line.find_first_not_of(" \t"));
+    line.erase(line.find_last_not_of(" \t") + 1);
+    if (!(line.starts_with("{{\"") && line.ends_with("\"}}")))
     {
-      if (line.empty()) continue;
-
-      if (line[0] == '#') { html += getHeader(line);
-      }
-      else if (line[0] == '*') 
-      {
-        html += "<ul>\n" + getListItem(line) + "</ul>";
-      }
-      else if (line[0] == '1' && line[1] == '.') 
-      {
-        html += "<ol>\n" + getListItem(line) + "</ol>";
-      }
-      else if(line.rfind("      ", 0) == 0) // 6 spaces means code block
-      {
-        string paragraph;
-        do
-        {
-          // It's only required to indent the first line. But if next lines are
-          // indented, we must trim the unnecessary spaces
-          if(line.rfind("      ", 0) == 0)
-            line.erase(0, 6);
-
-          paragraph += line + "\n";
-          getline(markdownFile, line);
-        }
-        while(!line.empty());
-        html += "<pre><code>" + paragraph + "</code></pre>";
-      }
-      else if(line[0] == '>')
-      {
-        string paragraph;
-        int depth = 0;
-        int indentCharIndex = 0;
-        int lineCount = 0;
-        do
-        {
-          int newDepth = 0;
-          for(int i = 0; i < line.length(); i++) 
-          {
-            if (line[i] == '>')
-            {
-              indentCharIndex = i + 1;
-              newDepth++;
-            }
-
-            if (line[i] == ' ')
-              continue;
-          }
-
-          if (newDepth > depth)
-          {
-            depth = newDepth;
-            paragraph += "<blockquote><p>";
-            lineCount = 0;
-          }
-
-          line.erase(0, indentCharIndex);
-          paragraph += (lineCount++ > 0) ? "<br>" + line : line;
-          getline(markdownFile, line);
-        }
-        while(!line.empty());
-
-
-        while(depth)
-        {
-          depth--;
-          paragraph += "</p></blockquote>";
-        }
-
-        html += paragraph;
-      }
-      else
-      {
-        string paragraph;
-        int lineCount = 0;
-        do
-        {
-          paragraph += 
-            lineCount++ ?
-            "<br>" + getSpanLevelFormatting(line):
-            getSpanLevelFormatting(line);
-
-          getline(markdownFile, line);
-        }
-        while(!line.empty());
-        html += "<p>" + paragraph + "</p>";
-      }
+      markdownFile.seekg(0);
     }
   }
 
+  string html = processBlockElements(markdownFile);
   return html;
 }
 
