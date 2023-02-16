@@ -190,7 +190,8 @@ string processBlockElements(ifstream& source, int nested = 0)
       do
       {
         int newDepth = 0;
-        for(int i = 0; i < line.length(); i++) 
+        const int lineLen = (int) line.length();
+        for(int i = 0; i < lineLen; i++) 
         {
           if (line[i] == '>')
           {
@@ -214,7 +215,6 @@ string processBlockElements(ifstream& source, int nested = 0)
         getline(source, line);
       }
       while(!line.empty());
-
 
       while(depth)
       {
