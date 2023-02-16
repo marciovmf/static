@@ -37,14 +37,18 @@ struct Page
   std::string relativeUrl;
   std::string sourceFileName;
   std::string outputFileName;
+  size_t sourceStartOffset;
+
   Page(std::string& title,
       std::string& relativeUrl,
       std::string& sourceFileName,
-      std::string& outFileName):
+      std::string& outFileName,
+      size_t sourceStartOffset):
     title(title),
     relativeUrl(relativeUrl),
     sourceFileName(sourceFileName),
-    outputFileName(outFileName) {}
+    outputFileName(outFileName),
+    sourceStartOffset(sourceStartOffset) {}
 
   static bool compareByTitle(const Page& a, const Page& b)
   {
@@ -94,7 +98,7 @@ struct Post : public Page
       std::string& month,
       std::string& year,
       std::string& monthName):
-    Page(title, relativeUrl, sourceFileName, outFileName),
+    Page(title, relativeUrl, sourceFileName, outFileName, 0),
     layoutName(layoutName),
     year(year),
     month(month),
@@ -631,7 +635,8 @@ bool processPage(
     std::string& outputFileName, 
     std::vector<Page>& pageList, 
     std::vector<Post>& postList,
-    std::unordered_map<std::string, std::string>& variables)
+    std::unordered_map<std::string, std::string>& variables,
+    size_t sourceStartOffset = 0)
 {
   std::ofstream outStream(outputFileName);
   if(!outStream.is_open())
@@ -641,8 +646,10 @@ bool processPage(
   }
 
   size_t fileSize;
-  char* sourceStart = readFileToBuffer(sourceFileName.c_str(), &fileSize);
-  char* sourceEnd = sourceStart + fileSize;
+  char* buffer = readFileToBuffer(sourceFileName.c_str(), &fileSize);
+  char* sourceStart = buffer + sourceStartOffset;
+  char* sourceEnd = buffer + fileSize;
+
   if(!sourceStart)
   {
     logError("Unable to read from template '%s'", sourceFileName.c_str());
@@ -650,6 +657,7 @@ bool processPage(
     return false;
   }
 
+  sourceStart += sourceStartOffset;
   bool result = processSource(outStream, templateRoot, variables, pageList, postList, sourceStart, sourceEnd);
 
   if (!result)
@@ -657,7 +665,7 @@ bool processPage(
     logError("Failed to process '%s'\n", sourceFileName.c_str());
   }
 
-  delete[] sourceStart;
+  delete[] buffer;
   outStream.close();
   return result;
 }
@@ -670,7 +678,7 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
   bool hasErrors = false;
   bool hasWarnings = false;
 
-  // Try to create the output directory in case it does not exists
+  // Try to create the output directory in case it does not exist
   std::filesystem::remove_all(outputDirectory);
   std::filesystem::create_directories(outputDirectory);
 
@@ -692,8 +700,32 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
       std::string relativeUrl = toLower((std::string&)fileName);
       std::string sourceFileName = (templateDirectory / fileName).string();
       std::string outputFileName = (outputDirectory / relativeUrl).string();
+      size_t sourceStartOffset = 0;
 
-      pageList.emplace_back(title, relativeUrl, sourceFileName, outputFileName);
+      // check for title override in the first line of the file
+      std::ifstream pageFile(sourceFileName);
+      if (pageFile.is_open())
+      {
+        std::string line;
+        getline(pageFile, line);
+        ParseContext context;
+        context.p = (char*) line.c_str();
+        context.eof = (char*) (context.p + line.length());
+
+        if ((getToken(context).type == Token::TOKEN_EXPRESSION_START))
+        {
+          Token tokenTitle;
+          if (requireToken(context, Token::TOKEN_PATH, &tokenTitle)
+              && requireToken(context, Token::TOKEN_EXPRESSION_END))
+          {
+            title = std::string(tokenTitle.start, tokenTitle.end - tokenTitle.start);
+            sourceStartOffset = pageFile.tellg();
+          }
+          pageFile.close();
+        }
+      }
+
+      pageList.emplace_back(title, relativeUrl, sourceFileName, outputFileName, sourceStartOffset);
     }
     delete pageFiles;
   }
@@ -755,7 +787,6 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
         continue;
       }
 
-
       // check for title override in the first line of the file
       std::ifstream postFile(sourceFileName);
       if (postFile.is_open())
@@ -775,73 +806,72 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
             title = std::string(tokenTitle.start, tokenTitle.end - tokenTitle.start);
           }
           postFile.close();
+        }
       }
+
+      postList.emplace_back(title, relativeUrl, sourceFileName, outputFileName,
+          layoutName, day, month, year, monthName);
     }
 
-
-    postList.emplace_back(title, relativeUrl, sourceFileName, outputFileName,
-        layoutName, day, month, year, monthName);
+    delete layoutFiles;
+    delete postFiles;
   }
 
-  delete layoutFiles;
-  delete postFiles;
-}
+  for(Page& page : pageList)
+  {
+    logInfoFmt("Processing page %s\n", page.sourceFileName.c_str());
+    variables["page.title"] = page.title;
+    variables["page.url"] = page.relativeUrl;
+    processPage(templateDirectory, page.sourceFileName, page.outputFileName, pageList, postList, variables, page.sourceStartOffset);
+  }
 
-for(Page& page : pageList)
-{
-  logInfoFmt("Processing page %s\n", page.sourceFileName.c_str());
-  variables["page.title"] = page.title;
-  variables["page.url"] = page.relativeUrl;
-  processPage(templateDirectory, page.sourceFileName, page.outputFileName, pageList, postList, variables);
-}
+  for(Post& post : postList)
+  {
+    logInfoFmt("Processing post %s\n", post.sourceFileName.c_str());
 
-for(Post& post : postList)
-{
-  logInfoFmt("Processing post %s\n", post.sourceFileName.c_str());
+    // load content file
+    size_t contentSourceSize;
+    char* contentSource = readFileToBuffer(post.sourceFileName.c_str(), &contentSourceSize);
 
-  // load content file
-  size_t contentSourceSize;
-  char* contentSource = readFileToBuffer(post.sourceFileName.c_str(), &contentSourceSize);
+    std::string layoutFileName = (layoutDirectory / post.layoutName).concat(".html").string();
+    std::string outputFileName = (outputDirectory / post.relativeUrl).string();
 
-  std::string layoutFileName = (layoutDirectory / post.layoutName).concat(".html").string();
-  std::string outputFileName = (outputDirectory / post.relativeUrl).string();
+    //TODO(marcio): check if MD file exists
+    std::string htmlSource = markdownToHtml(post.sourceFileName);
 
-  //TODO(marcio): check if MD file exists
-  std::string htmlSource = markdownToHtml(post.sourceFileName);
+    // Export each post data as a "post.xxx" variable
+    variables["post.title"] = post.title;
+    variables["post.layout"] = post.layoutName;
+    variables["post.url"] = post.relativeUrl;
+    variables["post.body"] = htmlSource;
+    variables["post.body"] = htmlSource;
+    variables["post.year"] = post.year;
+    variables["post.month"] = post.month;
+    variables["post.day"] = post.day;
+    variables["post.month_name"] = post.monthName;
+    // Consider the template data as the page data
+    variables["page.title"] = post.title;
+    variables["page.url"] = post.relativeUrl;
 
-  // Export each post data as a "post.xxx" variable
-  variables["post.title"] = post.title;
-  variables["post.layout"] = post.layoutName;
-  variables["post.url"] = post.relativeUrl;
-  variables["post.body"] = htmlSource;
-  variables["post.body"] = htmlSource;
-  variables["post.year"] = post.year;
-  variables["post.month"] = post.month;
-  variables["post.day"] = post.day;
-  variables["post.month_name"] = post.monthName;
-  // Consider the template data as the page data
-  variables["page.title"] = post.title;
-  variables["page.url"] = post.relativeUrl;
+    // we need a "fake" page to pass to processPage
+    bool success = processPage(
+        templateDirectory,
+        layoutFileName,
+        outputFileName,
+        pageList,
+        postList,
+        variables);
+    delete[] contentSource;
 
-  // we need a "fake" page to pass to processPage
-  bool success = processPage(
-      templateDirectory,
-      layoutFileName,
-      outputFileName,
-      pageList,
-      postList,
-      variables);
-  delete[] contentSource;
+    if (! success)
+      hasErrors = true;
+  }
 
-  if (! success)
-    hasErrors = true;
-}
+  if (hasErrors)
+    return -1;
 
-if (hasErrors)
-  return -1;
-
-if (hasWarnings)
-  return 1;
+  if (hasWarnings)
+    return 1;
 
   auto end = std::chrono::system_clock::now();
   auto markdownProcessTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
@@ -854,7 +884,7 @@ if (hasWarnings)
       );
   logInfo("Done\n");
   return 0;
-  }
+}
 
 int main(int argc, char** argv)
 {
