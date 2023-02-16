@@ -877,11 +877,24 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
   auto markdownProcessTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
   logInfoFmt("Site generated in %ldms\n", (long) markdownProcessTime);
 
-  logInfo("Copying assets ...\n");
-  std::filesystem::copy(templateDirectory / "assets", outputDirectory / "assets",
-      std::filesystem::copy_options::recursive |
-      std::filesystem::copy_options::overwrite_existing 
-      );
+
+  std::filesystem::path templateAssetFolder = templateDirectory / "assets";
+  if (std::filesystem::exists(templateAssetFolder))
+  {
+    logInfo("Copying Template level assets ...\n");
+    std::filesystem::copy(templateAssetFolder, outputDirectory / "assets",
+        std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing );
+  }
+
+
+  logInfo("Copying Post level assets ...\n");
+  std::filesystem::path postAssetFolder = postsDirectory / "assets";
+  if (std::filesystem::exists(postAssetFolder))
+  {
+    std::filesystem::copy(postAssetFolder, outputDirectory / "assets",
+        std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing );
+  }
+
   logInfo("Done\n");
   return 0;
 }
