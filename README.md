@@ -15,7 +15,7 @@ If you just need simple features this program gets you covered. If you need fanc
 ## How does it work ?
 
 The program expects two arguments: the path where the site configuration file is and the path where the site will be generated to.
-``` ussg <site_root> <output_root> ```
+``` static <site_root> <output_root> ```
 
 The _site_root_ must contain a site configuration file named **site.txt**
 
