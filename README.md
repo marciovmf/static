@@ -15,7 +15,7 @@ If you just need simple features this program gets you covered. If you need fanc
 ## How does it work ?
 
 The program expects two arguments: the path where the site configuration file is and the path where the site will be generated to.
-``` ussg <site_root> <output_root> ```
+``` static <site_root> <output_root> ```
 
 The _site_root_ must contain a site configuration file named **site.txt**
 
@@ -48,7 +48,7 @@ another_custom_key = "bar"
 
 ### Posts
 
-Posts are special .txt files located on the folder pointed by **site.post_src_dir** on the **site.txt** file. 
+Posts are plain Markdown files located on the folder pointed by **site.post_src_dir** on the **site.txt** file. 
 
 Post file names should be named according to the rule:
 ```LAYOUT-YYYYMMDD-TITLE.txt```
@@ -61,9 +61,16 @@ Files with wrong naming convention will be ignored.
 Files with invalid month/day ranges will be ignored.
 Files without a matching layout file will be ignored.
 
-Posts can have anyting insde. Ideally you should add html to structure the post as needed.
+Because the part of the file name will be the actual post title, there are natural limitations to characters that can be used.
+For example it's not possible to have colon character o slashes or question marks on file names under windows.
+To overcome this limitation, the **very first line** of a post markdown file can be a title override block.
+The syntax is:
 
-## Layout files
+```{{"your post title comes here!"}}```
+
+No matter the TITLE part of the file name, the post title will be whatever is specified in the title override block, if present.
+
+### Layout files
 Layout files should be placed at _site_root_/layout and are used to render posts.
 The following "tags" can be used on a layout file to render post information:
 - **{{post.title}}** The title of the post as specified on the post file name.
@@ -135,15 +142,15 @@ A simple menu with all the posts could be written like this:
   </nav>
 ```
 
+
+### Asset folders
+The **Posts** folder and the current **Template** folder might contain a subfolder called **assets**. 
+If present, the contents of these folders will be copied to output location /assets folder.
+This is a convenient way to automaticaly deplopy images, css files, javascript files and other media refered by your templates and posts.
+
+
 ## Conclusion
 That's all I needed in terms of static site generation. I might extend this program in case I need something extra. 
 If this is usefull to you feel free to use it or change it yourself.
 
 
-
- 
- 
-
-
-
- 
