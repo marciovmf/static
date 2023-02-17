@@ -89,7 +89,7 @@ img {
 }
 
 pre{
-  border-width: 5px;
+  border-width: 1px;
   border-style: solid;
   border-color: #ddd;
   background-color: #eee;
@@ -103,3 +103,14 @@ pre{
   white-space: -o-pre-wrap;    /* Opera 7 */
   word-wrap: break-word;       /* Internet Explorer 5.5+ */
 }
+
+blockquote {
+  border-width: 1px 1px 1px 5px;
+  border-style: solid;
+  border-color: #ddd;
+  background-color: #eee;
+  line-height: 80%;
+  word-wrap: break-word;
+  padding: 4px;
+}
+
