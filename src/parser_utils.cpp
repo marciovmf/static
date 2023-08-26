@@ -130,7 +130,6 @@ Token getToken(ParseContext& context)
   // TOKEN_EOL \n
   if (c == '\n')
   {
-    getc(context);
     token.type = Token::Type::TOKEN_EOL;
     token.end++;
     return token;

@@ -89,10 +89,15 @@ string getEmphasis(const string&& line)
 {
   if (line.find_first_of("*_~") != string::npos)
   {
-    static regex strongPattern("(\\*\\*|\\_\\_)(.*?)\\1");
+		std::cout << "Checkpoint 1" << std::endl;
+    static regex strongPattern("(\\*\\*|__)(.*?)\\1");
     string result = regex_replace(line, strongPattern, "<strong>$2</strong>");
-    static regex emPattern("(\\_|\\*)(.*?)\\1");
+
+		std::cout << "Checkpoint 2" << std::endl;
+    static regex emPattern("(_|\\*)(.*?)\\1");
     result = regex_replace(result, emPattern, "<em>$2</em>");
+
+		std::cout << "Checkpoint 3" << std::endl;
     static regex strikPattern("(\\~\\~)(.*?)\\1");
     result = regex_replace(result, strikPattern, "<s>$2</s>");
     return result;
