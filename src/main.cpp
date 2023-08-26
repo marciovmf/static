@@ -2,7 +2,6 @@
 //TODO(marcio): Make possible to iterate a subsection of a collection
 
 #include <filesystem>
-#include <stdio.h>
 #include <iostream>
 #include <set>
 #include <vector>
@@ -14,6 +13,7 @@
 #include <algorithm>
 #include <any>
 #include <chrono>
+#include <stdio.h>
 #include "parser_utils.h"
 #include "markdown.h"
 
@@ -71,7 +71,7 @@ struct Page
       Page::sorting.compareFunction = (CompareFunction<Page>) Page::compareByTitle;
     else
     {
-      logError("Unable to sort Page list by unknown property '%s'", member.c_str());
+      logErrorFmt("Unable to sort Page list by unknown property '%s'", member.c_str());
       Page::sorting.compareFunction = (CompareFunction<Page>) Page::compareByTitle;
     }
   }
@@ -179,7 +179,7 @@ struct Post : public Page
       Post::sorting.compareFunction = Post::compareByDate;
     else
     {
-      logError("Unable to sort Post list by unknown property '%s'", member.c_str());
+      logErrorFmt("Unable to sort Post list by unknown property '%s'", member.c_str());
       Post::sorting.compareFunction = (CompareFunction<Post>) Post::compareByDate;
     }
   }
@@ -225,7 +225,7 @@ std::string& toLower(std::string& str)
 
 void logMismatchedTokenType(Token::Type expected, Token::Type found)
 {
-  logError("Unexpected token type '%d' while expecting '%d'\n", found, expected);
+  logErrorFmt("Unexpected token type '%d' while expecting '%d'\n", found, expected);
 }
 
 bool requireToken(ParseContext& context, Token::Type requiredType, Token* tokenFound = nullptr)
@@ -247,7 +247,7 @@ std::unordered_map<std::string, std::string>* loadSiteConfigFile(std::filesystem
   char* buffer = readFileToBuffer(fileName.c_str(), &bufferSize);
   if(! buffer)
   {
-    logError("Unable to open site config file '%s'\n", fileName.c_str());
+    logErrorFmt("Unable to open site config file '%s'\n", fileName.c_str());
     return nullptr;
   }
 
@@ -380,7 +380,7 @@ bool parseExpression(ParseContext& context,
         std::string variableValue = "UNDEFINED";
         if (it == variables.end())
         {
-          logError("Unknown variable '%.*s'\n", (int)identifierLen, token.start);
+          logErrorFmt("Unknown variable '%.*s'\n", (int)identifierLen, token.start);
         }
         else
         {
@@ -641,7 +641,7 @@ bool processPage(
   std::ofstream outStream(outputFileName);
   if(!outStream.is_open())
   {
-    logError("Could not write to file %s\n", outputFileName.c_str());
+    logErrorFmt("Could not write to file %s\n", outputFileName.c_str());
     return false;
   }
 
@@ -652,7 +652,7 @@ bool processPage(
 
   if(!sourceStart)
   {
-    logError("Unable to read from template '%s'", sourceFileName.c_str());
+    logErrorFmt("Unable to read from template '%s'", sourceFileName.c_str());
     outStream.close();
     return false;
   }
@@ -662,7 +662,7 @@ bool processPage(
 
   if (!result)
   {
-    logError("Failed to process '%s'\n", sourceFileName.c_str());
+    logErrorFmt("Failed to process '%s'\n", sourceFileName.c_str());
   }
 
   delete[] buffer;
@@ -768,7 +768,7 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
       if (dayValue == 0 || monthValue == 0 || yearValue == 0 || dayValue > 30 || monthValue > 12)
       {
         hasWarnings = true;
-        logError("Invalid date format on content file '%s'.\n", fileName.c_str());
+        logErrorFmt("Invalid date format on content file '%s'.\n", fileName.c_str());
       }
 
       // Does it have a valid layout ?
@@ -777,12 +777,12 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
       if (layoutFiles->find(layoutFileName) == layoutFiles->end())
       {
         hasWarnings = true;
-        logError("Invalid Layout file referenced on content file '%s'.\n", fileName.c_str());
+        logErrorFmt("Invalid Layout file referenced on content file '%s'.\n", fileName.c_str());
       }
 
       if (hasWarnings)
       {
-        logError("Skipping file '%s'.\n", fileName.c_str());
+        logErrorFmt("Skipping file '%s'.\n", fileName.c_str());
         hasWarnings = false;
         continue;
       }

@@ -1,7 +1,10 @@
 #ifndef PARSER_UTILS
 #define PARSER_UTILS
 
-#define logError(fmt, ...) printf("ERROR: " fmt, __VA_ARGS__)
+#include <stddef.h>
+
+#define logError(msg) printf("ERROR: " msg)
+#define logErrorFmt(fmt, ...) printf("ERROR: " fmt, __VA_ARGS__)
 #define logInfoFmt(fmt, ...) printf("INFO: " fmt"", __VA_ARGS__)
 #define logInfo(msg) printf("INFO: " msg"")
 #define END_OF_FILE -1

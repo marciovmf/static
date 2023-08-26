@@ -7,7 +7,7 @@ char* readFileToBuffer(const char* fileName, size_t* fileSize)
   std::ifstream is(fileName, std::ifstream::binary);
   if(!is)
   {
-    logError("Could not open file '%s' for reading\n", fileName);
+    logErrorFmt("Could not open file '%s' for reading\n", fileName);
     return nullptr;
   }
 
