@@ -3,10 +3,10 @@
 
 #include <stddef.h>
 
-#define logError(msg) printf("ERROR: " msg)
-#define logErrorFmt(fmt, ...) printf("ERROR: " fmt, __VA_ARGS__)
-#define logInfoFmt(fmt, ...) printf("INFO: " fmt"", __VA_ARGS__)
-#define logInfo(msg) printf("INFO: " msg"")
+#define logError(msg) printf("ERROR\t- " msg)
+#define logErrorFmt(fmt, ...) printf("ERROR\t- " fmt, __VA_ARGS__)
+#define logInfoFmt(fmt, ...) printf("INFO\t- " fmt, __VA_ARGS__)
+#define logInfo(msg) printf("INFO\t- " msg)
 #define END_OF_FILE -1
 
 struct ParseContext

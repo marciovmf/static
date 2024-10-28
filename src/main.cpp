@@ -28,7 +28,6 @@ struct SortingInformation
   SortingInformation<T>(CompareFunction<T> f):compareFunction(f) {}
 };
 
-
 // site structure
 struct Page
 {
@@ -188,11 +187,15 @@ struct Post : public Page
 SortingInformation<Page> Page::sorting = SortingInformation<Page>(Page::compareByTitle);
 SortingInformation<Post> Post::sorting = SortingInformation<Post>(Post::compareByDate);
 
-
 std::set<std::filesystem::path>* scanDirectory(std::filesystem::path& path, const char* extension)
 {
-  auto* fileList = new std::set<std::filesystem::path>();
+  if (!std::filesystem::exists(path))
+  {
+    logErrorFmt("Path does not exist: %s\n", path.string().c_str());
+    return nullptr;
+  }
 
+  auto* fileList = new std::set<std::filesystem::path>();
   for(auto& p : std::filesystem::directory_iterator(path))
   {
     std::filesystem::path& subpath = (std::filesystem::path&) p.path();
@@ -262,22 +265,27 @@ std::unordered_map<std::string, std::string>* loadSiteConfigFile(std::filesystem
   std::unordered_map<std::string, std::string>& variables = *variablesPtr;
 
   // set some default values
+
+  std::filesystem::path siteRootFolder = siteConfigFile;
+  siteRootFolder.remove_filename();
+  variables["site.root_dir"] = siteRootFolder.string();
   variables["site.name"] = "Undefined";
   variables["site.url"] = "http://";
-  variables["site.template_dir"] = "template";
-  variables["site.posts_src_dir"] = "posts";
-  variables["month_01"] = "JAN";
-  variables["month_02"] = "FEB";
-  variables["month_03"] = "MAR";
-  variables["month_04"] = "APR";
-  variables["month_05"] = "MAY";
-  variables["month_06"] = "JUN";
-  variables["month_07"] = "JUL";
-  variables["month_08"] = "AUG";
-  variables["month_09"] = "SEP";
-  variables["month_10"] = "OCT";
-  variables["month_11"] = "NOV";
-  variables["month_12"] = "DEC";
+  variables["site.templates_dir"] = "template";
+  variables["site.posts_dir"]     = "posts";
+  variables["site.pages_dir"]     = "pages";
+  variables["month_01"]           = "JAN";
+  variables["month_02"]           = "FEB";
+  variables["month_03"]           = "MAR";
+  variables["month_04"]           = "APR";
+  variables["month_05"]           = "MAY";
+  variables["month_06"]           = "JUN";
+  variables["month_07"]           = "JUL";
+  variables["month_08"]           = "AUG";
+  variables["month_09"]           = "SEP";
+  variables["month_10"]           = "OCT";
+  variables["month_11"]           = "NOV";
+  variables["month_12"]           = "DEC";
 
   while (context.p < context.eof)
   {
@@ -309,23 +317,29 @@ std::unordered_map<std::string, std::string>* loadSiteConfigFile(std::filesystem
     variables[sKey] = sValue;   
   }
 
-  std::filesystem::path siteRootFolder = siteConfigFile;
-  siteRootFolder.remove_filename();
 
   // if templates dir is not absolute, consider it's relative to site.txt folder location
-  std::filesystem::path templatesDir = variables["site.template_dir"];
+  std::filesystem::path templatesDir = variables["site.templates_dir"];
   if (templatesDir.is_relative())
   {
     templatesDir = siteRootFolder / templatesDir;
-    variables["site.template_dir"] = templatesDir.string();
+    variables["site.templates_dir"] = templatesDir.string();
   }
 
   // if posts_src dir is not absolute, consider it's relative to site.txt folder location
-  std::filesystem::path postsSrcDir = variables["site.posts_src_dir"];
+  std::filesystem::path postsSrcDir = variables["site.posts_dir"];
   if (postsSrcDir.is_relative())
   {
     postsSrcDir = siteRootFolder / postsSrcDir;
-    variables["site.posts_src_dir"] = postsSrcDir.string();
+    variables["site.posts_dir"] = postsSrcDir.string();
+  }
+
+  // if pages_dir is not absolute, consider it's relative to site.txt folder location
+  std::filesystem::path pagesSrcDir = variables["site.pages_dir"];
+  if (pagesSrcDir.is_relative())
+  {
+    pagesSrcDir = siteRootFolder / pagesSrcDir;
+    variables["site.pages_dir"] = pagesSrcDir.string();
   }
 
   delete buffer;
@@ -338,6 +352,15 @@ std::unordered_map<std::string, std::string>* loadSiteConfigFile(std::filesystem
   }
 
   return variablesPtr;
+}
+
+
+std::filesystem::path strToNormalizedPath(std::string& strPath)
+{
+  char nativeSep = std::filesystem::path::preferred_separator;
+  char nonNativeSep = (nativeSep == '/') ? '\\' : '/';
+  std::replace(strPath.begin(), strPath.end(), nonNativeSep, nativeSep);
+  return std::filesystem::path(strPath);
 }
 
 // Markdown parsing
@@ -403,14 +426,60 @@ bool parseExpression(ParseContext& context,
         if (!requireToken(context, Token::Type::TOKEN_EXPRESSION_END))
           return false;
 
-        // include path is always relative to template root
-        std::string includedPagePath = (templateRoot / std::string(token.start, token.end - token.start)).string();
+        std::string includedPagePath = std::string(token.start, token.end - token.start);
+
+        // Replace macros from include path
+        if (includedPagePath.starts_with("$("))
+        {
+          std::string macro = "$(posts_dir)";
+          size_t macroPotion = includedPagePath.find(macro); 
+          if (macroPotion != std::string::npos)
+            includedPagePath.replace(macroPotion, macro.length(), variables["site.posts_dir"]);
+
+          macro = "$(pages_dir)";
+          macroPotion = includedPagePath.find(macro); 
+          if (macroPotion != std::string::npos)
+            includedPagePath.replace(macroPotion, macro.length(), variables["site.pages_dir"]);
+
+          macro = "$(root_dir)";
+          macroPotion = includedPagePath.find(macro); 
+          if (macroPotion != std::string::npos)
+            includedPagePath.replace(macroPotion, macro.length(), variables["site.root_dir"]);
+        }
+        else
+        {
+          // include path is relative to the current template root
+          includedPagePath = (templateRoot / includedPagePath).string();
+        }
+
+        std::string normalizedPath = strToNormalizedPath(includedPagePath).string();
+        if (!std::filesystem::exists(normalizedPath))
+        {
+          logErrorFmt("Included file does not exist '%s'.\n", normalizedPath.c_str());
+          return false;
+        }
 
         size_t includeFileSize;
-        char* includedSourceStart = readFileToBuffer(includedPagePath.c_str(), &includeFileSize);
-        char* includedSourceEnd = includedSourceStart + includeFileSize;
-        bool includeSuccess = processSource(outStream, templateRoot, variables, pageList, postList, includedSourceStart, includedSourceEnd);
-        delete includedSourceStart;
+        const char* includedSourceStart;
+        const char* includedSourceEnd;
+        std::string generatedHtml;
+        bool includeSuccess = false;
+
+        if (includedPagePath.ends_with(".md"))
+        {
+          std::string s = markdownToHtml(normalizedPath.c_str());
+          includedSourceStart = s.c_str();
+          includedSourceEnd = includedSourceStart + s.length();
+          includeSuccess = processSource(outStream, templateRoot, variables, pageList, postList, includedSourceStart, includedSourceEnd);
+        }
+        else
+        {
+          includedSourceStart = readFileToBuffer(includedPagePath.c_str(), &includeFileSize);
+          includedSourceEnd = includedSourceStart + includeFileSize;
+          includeSuccess = processSource(outStream, templateRoot, variables, pageList, postList, includedSourceStart, includedSourceEnd);
+          delete includedSourceStart;
+        }
+
         return includeSuccess;
       }
       break;
@@ -670,7 +739,8 @@ bool processPage(
   return result;
 }
 
-int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&& outputDirectory)
+
+int generateSite(std::filesystem::path& inputDirectory, std::filesystem::path& outputDirectory)
 {
   auto start = std::chrono::system_clock::now();
   std::vector<Page> pageList;
@@ -685,12 +755,27 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
   std::filesystem::path siteConfigFile = inputDirectory / "site.txt";
   std::unordered_map<std::string, std::string>* variablesPtr = loadSiteConfigFile(siteConfigFile);
   std::unordered_map<std::string, std::string>& variables = *variablesPtr;
-  std::filesystem::path templateDirectory = variables["site.template_dir"]; 
-  std::filesystem::path postsDirectory = variables["site.posts_src_dir"]; 
+  std::filesystem::path templateDirectory = strToNormalizedPath(variables["site.templates_dir"]);
+  std::filesystem::path postsDirectory = strToNormalizedPath(variables["site.posts_dir"]);
+  std::filesystem::path pagesDirectory = strToNormalizedPath(variables["site.pages_dir"]);
   std::filesystem::path layoutDirectory = templateDirectory / "layout";
+
+  std::cout << "Generating site to " << outputDirectory << std::endl;
+  std::cout << "--------------- Settings ---------- " << std::endl;
+  std::cout << "site file\t= " << siteConfigFile << std::endl;
+  std::cout << "templates dir\t= " << templateDirectory << std::endl;
+  std::cout << "posts dir\t= " << postsDirectory << std::endl;
+  std::cout << "pages dir\t= " << pagesDirectory << std::endl;
+  std::cout << "layout dir\t= " << layoutDirectory << std::endl;
+  std::cout << std::endl;
 
   // Collect Page info
   std::set<std::filesystem::path>* pageFiles = scanDirectory(templateDirectory, ".html");
+  if(pageFiles == nullptr)
+  {
+    hasErrors = true;
+  }
+
   if (pageFiles)
   {
     for(const std::filesystem::path& path : *pageFiles)
@@ -736,18 +821,30 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
 
   // Collect Content and Layout info
   std::set<std::filesystem::path>* postFiles = scanDirectory(postsDirectory, ".md");
-  std::set<std::filesystem::path>* layoutFiles = scanDirectory(layoutDirectory, ".html");
+  if (postFiles == nullptr)
+  {
+    hasErrors = true;
+  }
 
   if (postFiles)
   {
+    const int TIMESTAMP_LEN = 8;  //AAAAMMDD = 8 chars
+    const int MINIMUM_FILE_NAME_LEN = TIMESTAMP_LEN + 2 - 3; // -AAAAMMDD- = 10 chars; .md = 3 chars
+
     postFiles->erase(siteConfigFile); // ignore the site config file
     for(auto it = postFiles->rbegin(); it != postFiles->rend(); ++it)
     {
       std::string fileName = (*it).filename().string();
+      if (fileName.length() <= MINIMUM_FILE_NAME_LEN)
+      {
+        std::cerr << "Ignoring file '" << fileName << "'. Name is too short to fit correct formatting." << std::endl;
+        continue;
+      }
+
       std::string layoutName = fileName.substr(0, fileName.find("-"));
-      std::string timestamp  = fileName.substr(layoutName.length() + 1, 8); //AAAAMMDD = 8 chars
+      std::string timestamp = fileName.substr(layoutName.length() + 1, TIMESTAMP_LEN);
       const size_t layoutNameLen = layoutName.length();
-      const size_t titleLen = fileName.length() - layoutNameLen - 10 - 3; // -AAAAMMDD- = 10 chars; .md = 3 chars
+      const size_t titleLen = fileName.length() - layoutNameLen - MINIMUM_FILE_NAME_LEN;
 
       // Fill in the content data
       std::string title = fileName.substr(layoutName.length() + 10, titleLen);
@@ -768,21 +865,21 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
       if (dayValue == 0 || monthValue == 0 || yearValue == 0 || dayValue > 30 || monthValue > 12)
       {
         hasWarnings = true;
-        logErrorFmt("Invalid date format on content file '%s'.\n", fileName.c_str());
+        logErrorFmt("%s: Invalid date format.\n", fileName.c_str());
       }
 
       // Does it have a valid layout ?
       std::string layoutFileName = (layoutDirectory / layoutName).concat(".html").string();
       toLower(layoutFileName);
-      if (layoutFiles->find(layoutFileName) == layoutFiles->end())
+      if (std::filesystem::exists(layoutFileName) == false)
       {
-        hasWarnings = true;
-        logErrorFmt("Invalid Layout file referenced on content file '%s'.\n", fileName.c_str());
+        hasErrors = true;
+        logErrorFmt("%s: References unknown Layout file '%s'.\n", fileName.c_str(), layoutFileName.c_str());
       }
 
-      if (hasWarnings)
+      if (hasErrors)
       {
-        logErrorFmt("Skipping file '%s'.\n", fileName.c_str());
+        logErrorFmt("%s: Skipping file.\n", fileName.c_str());
         hasWarnings = false;
         continue;
       }
@@ -813,7 +910,6 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
           layoutName, day, month, year, monthName);
     }
 
-    delete layoutFiles;
     delete postFiles;
   }
 
@@ -867,36 +963,32 @@ int generateSite(std::filesystem::path&& inputDirectory, std::filesystem::path&&
       hasErrors = true;
   }
 
-  if (hasErrors)
-    return -1;
-
-  if (hasWarnings)
-    return 1;
-
-  auto end = std::chrono::system_clock::now();
-  auto markdownProcessTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-  logInfoFmt("Site generated in %ldms\n", (long) markdownProcessTime);
-
-
-  std::filesystem::path templateAssetFolder = templateDirectory / "assets";
-  if (std::filesystem::exists(templateAssetFolder))
+  if (hasErrors == false)
   {
-    logInfo("Copying Template level assets ...\n");
-    std::filesystem::copy(templateAssetFolder, outputDirectory / "assets",
-        std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing );
+    auto end = std::chrono::system_clock::now();
+    auto markdownProcessTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    logInfoFmt("Site generated in %ldms\n", (long) markdownProcessTime);
+
+    std::filesystem::path templateAssetFolder = templateDirectory / "assets";
+    if (std::filesystem::exists(templateAssetFolder))
+    {
+      logInfo("Copying Template level assets ...\n");
+      std::filesystem::copy(templateAssetFolder, outputDirectory / "assets",
+          std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing );
+    }
+
+    logInfo("Copying Post level assets ...\n");
+    std::filesystem::path postAssetFolder = postsDirectory / "assets";
+    if (std::filesystem::exists(postAssetFolder))
+    {
+      std::filesystem::copy(postAssetFolder, outputDirectory / "assets",
+          std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing );
+    }
   }
 
-
-  logInfo("Copying Post level assets ...\n");
-  std::filesystem::path postAssetFolder = postsDirectory / "assets";
-  if (std::filesystem::exists(postAssetFolder))
-  {
-    std::filesystem::copy(postAssetFolder, outputDirectory / "assets",
-        std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing );
-  }
-
-  logInfo("Done\n");
-  return 0;
+  const char* message = hasErrors ?"Generation Failed\n" :  "Success\n";
+  logInfoFmt("%s", message);
+  return hasErrors ? 1 : 0;
 }
 
 int main(int argc, char** argv)
@@ -907,6 +999,13 @@ int main(int argc, char** argv)
     return 0;
   }
 
-  return generateSite(std::filesystem::path(argv[1]), std::filesystem::path(argv[2]));
+  std::filesystem::path srcDir = std::filesystem::path(argv[1]);
+  std::filesystem::path outDir = std::filesystem::path(argv[2]);
+  std::filesystem::path cwd = std::filesystem::current_path();
+
+  if (srcDir.is_relative()) srcDir = cwd / srcDir;
+  if (outDir.is_relative()) outDir = cwd / outDir;
+
+  return generateSite(srcDir, outDir);
 }
 

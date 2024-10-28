@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.18)
 set(CMAKE_CXX_STANDARD 20)
 set(PROJECT_NAME static)
 Project(${PROJECT_NAME})
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 list(APPEND SOURCES 
   main.cpp
   markdown.cpp
