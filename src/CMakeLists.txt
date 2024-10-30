@@ -1,14 +1,15 @@
 cmake_minimum_required(VERSION 3.18)
-set(CMAKE_CXX_STANDARD 20)
 set(PROJECT_NAME static)
 Project(${PROJECT_NAME})
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 list(APPEND SOURCES 
-  main.cpp
-  markdown.cpp
-  markdown.h
-  parser_utils.cpp
-  parser_utils.h
+  common.h common.c
+  filesystem.h filesystem.c
+  config.h config.c
+  ast.h ast.c
+  interpreter.h interpreter.c
+  parser.h parser.c
+  main.c
   version.rc)
 
 add_executable(${PROJECT_NAME} ${SOURCES})

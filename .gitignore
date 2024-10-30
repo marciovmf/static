@@ -34,3 +34,4 @@
 tags
 .exrc
 build/
+.cache
