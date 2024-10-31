@@ -1,192 +1,193 @@
 #include "common.h"
 #include "ast.h"
+#include <stdlib.h>
+#include <string.h>
 
-ASTNodeLiteral* ast_mknode_literal_int(int int_value)
+#define strdup strdup_safe
+
+//
+// Helper functions for ASTExpression nodes
+//
+
+ASTExpression* ast_create_expression_binary(ASTExpression* left, ASTOperator op, ASTExpression* right) 
 {
-  ASTNodeLiteral *node = (ASTNodeLiteral *)malloc(sizeof(ASTNodeLiteral));
-  node->type = TYPE_INT;
-  node->data.int_value = int_value;
-  return node;
+  ASTExpression* expr = (ASTExpression*)malloc(sizeof(ASTExpression));
+  expr->type = EXPR_BINARY;
+  expr->as.binary_expr.left = left;
+  expr->as.binary_expr.op = op;
+  expr->as.binary_expr.right = right;
+  return expr;
 }
 
-ASTNodeLiteral* ast_mknode_literal_float(double float_value)
+ASTExpression* ast_create_expression_unary(ASTUnaryOperator op, ASTExpression* expression) 
 {
-  ASTNodeLiteral *node = (ASTNodeLiteral *)malloc(sizeof(ASTNodeLiteral));
-  node->type = TYPE_FLOAT;
-  node->data.float_value = float_value;
-  return node;
+  ASTExpression* expr = (ASTExpression*)malloc(sizeof(ASTExpression));
+  expr->type = EXPR_UNARY;
+  expr->as.unary_expr.op = op;
+  expr->as.unary_expr.expression = expression;
+  return expr;
 }
 
-ASTNodeVariable* ast_mknode_variable(const char *name)
+ASTExpression* ast_create_expression_logical(ASTExpression* left, ASTLogicalOperator op, ASTExpression* right) 
 {
-  ASTNodeVariable *node = (ASTNodeVariable *)malloc(sizeof(ASTNodeVariable));
-  smallstr(&node->name, name);
-  return node;
+  ASTExpression* expr = (ASTExpression*)malloc(sizeof(ASTExpression));
+  expr->type = EXPR_LOGICAL;
+  expr->as.logical_expr.left = left;
+  expr->as.logical_expr.op = op;
+  expr->as.logical_expr.right = right;
+  return expr;
 }
 
-ASTNodeExpression* ast_mknode_expression_unary(ASTOperator op, ASTNodeExpression *operand)
+ASTExpression* ast_create_expression_comparison(ASTExpression* left, ASTComparisonOperator op, ASTExpression* right) 
 {
-  ASTNodeExpression *node = (ASTNodeExpression *)malloc(sizeof(ASTNodeExpression));
-  node->type = NODE_UNARY_OP;
-  node->data.unary_op.op = op;
-  node->data.unary_op.operand = operand;
-  return node;
+  ASTExpression* expr = (ASTExpression*)malloc(sizeof(ASTExpression));
+  expr->type = EXPR_COMPARISON;
+  expr->as.comparison_expr.left = left;
+  expr->as.comparison_expr.op = op;
+  expr->as.comparison_expr.right = right;
+  return expr;
 }
 
-ASTNodeExpression* ast_mknode_expression_binary(ASTOperator op, ASTNodeExpression *left, ASTNodeExpression *right)
+ASTExpression* ast_create_expression_literal_int(int value) 
 {
-  ASTNodeExpression *node = (ASTNodeExpression *)malloc(sizeof(ASTNodeExpression));
-  node->type = NODE_BINARY_OP;
-  node->data.binary_op.op = op;
-  node->data.binary_op.left = left;
-  node->data.binary_op.right = right;
-  return node;
+  ASTExpression* expr = (ASTExpression*)malloc(sizeof(ASTExpression));
+  expr->type = EXPR_LITERAL_INT;
+  expr->as.number_literal = (double) value;
+  return expr;
 }
 
-ASTNodeExpression* ast_mknode_expression_function_call(const char *function_name, ASTNodeExpression **arguments, int arg_count)
+ASTExpression* ast_create_expression_literal_float(double value) 
 {
-  ASTNodeExpression *node = (ASTNodeExpression *)malloc(sizeof(ASTNodeExpression));
-  node->type = NODE_FUNCTION_CALL;
-  smallstr(&node->data.function_call.function_name, function_name);
-  node->data.function_call.arguments = arguments;
-  node->data.function_call.arg_count = arg_count;
-  return node;
+  ASTExpression* expr = (ASTExpression*)malloc(sizeof(ASTExpression));
+  expr->type = EXPR_LITERAL_FLOAT;
+  expr->as.number_literal = value;
+  return expr;
 }
 
-ASTNodeTerm* ast_mknode_term(ASTNodeExpression *factor)
+ASTExpression* ast_create_expression_literal_string(const char* value) 
 {
-  ASTNodeTerm *node = (ASTNodeTerm *)malloc(sizeof(ASTNodeTerm));
-  node->factor = factor;
-  node->next = NULL;
-  return node;
+  ASTExpression* expr = (ASTExpression*)malloc(sizeof(ASTExpression));
+  expr->type = EXPR_LITERAL_STRING;
+  expr->as.string_literal = strdup(value);
+  return expr;
 }
 
-ASTNodeFactor* ast_mknode_factor_literal(ASTNodeLiteral *literal)
+ASTExpression* ast_create_expression_lvalue(const char* identifier) 
 {
-  ASTNodeFactor *node = (ASTNodeFactor *)malloc(sizeof(ASTNodeFactor));
-  node->type = NODE_LITERAL;
-  node->data.literal = *literal;
-  return node;
+  ASTExpression* expr = (ASTExpression*)malloc(sizeof(ASTExpression));
+  expr->type = EXPR_LVALUE;
+  expr->as.identifier = strdup(identifier);
+  return expr;
 }
 
-ASTNodeFactor* ast_mknode_factor_literal_int(int literal)
+
+//
+// Helper functions for ASTStatement nodes
+//
+
+ASTStatement* ast_create_statement_assignment(const char* identifier, ASTExpression* expression) 
 {
-  ASTNodeLiteral *l = ast_mknode_literal_int(literal);
-  ASTNodeFactor *f = ast_mknode_factor_literal(l);
-  return f;
+  ASTStatement* stmt = (ASTStatement*)malloc(sizeof(ASTStatement));
+  stmt->type = AST_STATEMENT_ASSIGNMENT;
+  stmt->as.assignment.identifier = strdup(identifier);
+  stmt->as.assignment.expression = expression;
+  return stmt;
 }
 
-ASTNodeFactor* ast_mknode_factor_literal_float(float literal)
+ASTStatement* ast_create_statement_if(ASTExpression* condition, ASTStatement* if_branch, ASTStatement* else_branch) 
 {
-  ASTNodeLiteral *l = ast_mknode_literal_float(literal);
-  ASTNodeFactor *f = ast_mknode_factor_literal(l);
-  return f;
+  ASTStatement* stmt = (ASTStatement*)malloc(sizeof(ASTStatement));
+  stmt->type = AST_STATEMENT_IF;
+  stmt->as.if_stmt.condition = condition;
+  stmt->as.if_stmt.if_branch = if_branch;
+  stmt->as.if_stmt.else_branch = else_branch;
+  return stmt;
 }
 
-ASTNodeFactor* ast_mknode_factor_variable(ASTNodeVariable *variable)
+ASTStatement* ast_create_statement_for(ASTAssignment* init, ASTExpression* condition, ASTAssignment* update, ASTStatement* body) 
 {
-  ASTNodeFactor *node = (ASTNodeFactor *)malloc(sizeof(ASTNodeFactor));
-  node->type = NODE_VARIABLE;
-  node->data.variable = *variable;
-  return node;
+  ASTStatement* stmt = (ASTStatement*)malloc(sizeof(ASTStatement));
+  stmt->type = AST_STATEMENT_FOR;
+  stmt->as.for_stmt.init = init;
+  stmt->as.for_stmt.condition = condition;
+  stmt->as.for_stmt.update = update;
+  stmt->as.for_stmt.body = body;
+  return stmt;
 }
 
-ASTNodeFactor* ast_mknode_factor_expression(ASTNodeExpression *expression)
+ASTStatement* ast_create_statement_while(ASTExpression* condition, ASTStatement* body) 
 {
-  ASTNodeFactor *node = (ASTNodeFactor *)malloc(sizeof(ASTNodeFactor));
-  node->type = NODE_FACTOR;
-  node->data.expression = expression;
-  return node;
+  ASTStatement* stmt = (ASTStatement*)malloc(sizeof(ASTStatement));
+  stmt->type = AST_STATEMENT_WHILE;
+  stmt->as.while_stmt.condition = condition;
+  stmt->as.while_stmt.body = body;
+  return stmt;
 }
 
-ASTNodeStatement* ast_mknode_statement_assignment(const char *variable_name, ASTNodeExpression *expression)
+ASTStatement* ast_create_statement_return(ASTExpression* expression) 
 {
-  ASTNodeStatement *node = (ASTNodeStatement *)malloc(sizeof(ASTNodeStatement));
-  node->type = NODE_STATEMENT_ASSIGNMENT;
-  smallstr(&node->data.assignment.variable_name, variable_name);
-  node->data.assignment.expression = expression;
-  node->next = NULL;
-  return node;
+  ASTStatement* stmt = (ASTStatement*)malloc(sizeof(ASTStatement));
+  stmt->type = AST_STATEMENT_RETURN;
+  stmt->as.return_expr = expression;
+  return stmt;
 }
 
-ASTNodeStatement* ast_mknode_statement_print(ASTNodeExpression *expression)
+ASTStatement* ast_create_statement_function_decl(const char* identifier, ASTStatementList* params, ASTBlock* body) 
 {
-  ASTNodeStatement *node = (ASTNodeStatement *)malloc(sizeof(ASTNodeStatement));
-  node->type = NODE_STATEMENT_PRINT;
-  node->data.print.expression = expression;
-  node->next = NULL;
-  return node;
+  ASTStatement* stmt = (ASTStatement*)malloc(sizeof(ASTStatement));
+  stmt->type = AST_STATEMENT_FUNCTION_DECL;
+  stmt->as.function_decl = (ASTFunctionDecl*)malloc(sizeof(ASTFunctionDecl));
+  stmt->as.function_decl->identifier = strdup(identifier);
+  stmt->as.function_decl->params = params;
+  stmt->as.function_decl->body = body;
+  return stmt;
 }
 
-ASTNodeStatement* ast_mknode_statement_if(ASTNodeExpression *condition, ASTNodeStatement *then_branch, ASTNodeStatement *else_branch)
+ASTStatement* ast_create_statement_print(ASTExpression* expression) 
 {
-  ASTNodeStatement *node = (ASTNodeStatement *)malloc(sizeof(ASTNodeStatement));
-  node->type = NODE_STATEMENT_IF;
-  node->data.if_node.condition = condition;
-  node->data.if_node.then_branch = then_branch;
-  node->data.if_node.else_branch = else_branch;
-  node->next = NULL;
-  return node;
+  ASTStatement* stmt = (ASTStatement*)malloc(sizeof(ASTStatement));
+  stmt->type = AST_STATEMENT_PRINT;
+  stmt->as.print_expr = expression;
+  return stmt;
 }
 
-ASTNodeStatement* ast_mknode_statement_while(ASTNodeExpression *condition, ASTNodeStatement *body)
+ASTStatement* ast_create_statement_input(const char* identifier) 
 {
-  ASTNodeStatement *node = (ASTNodeStatement *)malloc(sizeof(ASTNodeStatement));
-  node->type = NODE_STATEMENT_WHILE;
-  node->data.while_node.condition = condition;
-  node->data.while_node.body = body;
-  node->next = NULL;
-  return node;
+  ASTStatement* stmt = (ASTStatement*)malloc(sizeof(ASTStatement));
+  stmt->type = AST_STATEMENT_INPUT;
+  stmt->as.input_expr = ast_create_expression_lvalue(identifier);
+  return stmt;
 }
 
-ASTNodeStatement* ast_mknode_statement_for(ASTNodeAssignment *initialization, ASTNodeExpression *condition, ASTNodeAssignment *increment, ASTNodeStatement *body)
+ASTStatement* ast_create_statement_break(void)
 {
-  ASTNodeStatement *node = (ASTNodeStatement *)malloc(sizeof(ASTNodeStatement));
-  node->type = NODE_STATEMENT_FOR;
-  node->data.for_node.initialization = initialization;
-  node->data.for_node.condition = condition;
-  node->data.for_node.increment = increment;
-  node->data.for_node.body = body;
-  node->next = NULL;
-  return node;
+  ASTStatement* stmt = (ASTStatement*)malloc(sizeof(ASTStatement));
+  stmt->type = AST_STATEMENT_BREAK;
+  return stmt;
 }
 
-ASTNodeStatement* ast_mknode_statement_function_declaration(const char *function_name, char **parameters, int param_count, ASTNodeStatement *body)
+//
+// Helper function to create a new block
+//
+
+ASTBlock* ast_create_block(ASTStatementList* statements) 
 {
-  ASTNodeStatement *node = (ASTNodeStatement *)malloc(sizeof(ASTNodeStatement));
-  node->type = NODE_STATEMENT_FUNCTION_DECLARATION; 
-  smallstr(&node->data.function_declaration.function_name, function_name);
-  node->data.function_declaration.parameters = parameters;
-  node->data.function_declaration.param_count = param_count;
-  node->data.function_declaration.body = body;
-  node->next = NULL;
-  return node;
+  ASTBlock* block = (ASTBlock*)malloc(sizeof(ASTBlock));
+  block->statements = statements;
+  return block;
 }
 
-ASTNodeProgram* ast_mknode_program(ASTNodeStatement *statements)
+ASTStatementList* ast_create_statement_list(ASTStatement* statement, ASTStatementList* next) 
 {
-  ASTNodeProgram *node = (ASTNodeProgram *)malloc(sizeof(ASTNodeProgram));
-  node->statements = statements; // Set the list of statements
-  return node;
+  ASTStatementList* stmt_list = (ASTStatementList*)malloc(sizeof(ASTStatementList));
+  stmt_list->statement = statement;
+  stmt_list->next = next;
+  return stmt_list;
 }
 
-ASTNodeExpression* ast_mknode_expression_factor(ASTNodeFactor *factor)
+ASTProgram* ast_create_program(ASTStatementList* statements) 
 {
-  ASTNodeExpression *node = (ASTNodeExpression *)malloc(sizeof(ASTNodeExpression));
-  if (factor->type == NODE_LITERAL)
-  {
-    node->type = NODE_LITERAL;
-    node->data.literal = factor->data.literal;
-  }
-  else if (factor->type == NODE_VARIABLE)
-  {
-    node->type = NODE_VARIABLE;
-    node->data.variable = factor->data.variable;
-  }
-  else
-  {
-    node->type = NODE_UNARY_OP;
-    node->data.unary_op.operand = factor->data.expression;
-  }
-  return node;
+  ASTProgram* program = (ASTProgram*)malloc(sizeof(ASTProgram));
+  program->statements = statements;
+  return program;
 }

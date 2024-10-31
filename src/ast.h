@@ -3,25 +3,19 @@
 
 #include "common.h"   // for Smallstr
 
-typedef enum ASTNode_e
-{
-  NODE_LITERAL,
-  NODE_VARIABLE,
-  NODE_UNARY_OP,
-  NODE_BINARY_OP,
-  NODE_FUNCTION_CALL,
-  NODE_STATEMENT_ASSIGNMENT,
-  NODE_STATEMENT_PRINT,
-  NODE_STATEMENT_IF,
-  NODE_STATEMENT_WHILE,
-  NODE_STATEMENT_FOR,
-  NODE_STATEMENT_FUNCTION_DECLARATION,
-  NODE_PROGRAM,
-  NODE_STATEMENT,
-  NODE_TERM,
-  NODE_FACTOR,
-} ASTNodeType;
+typedef struct ASTExpression_t        ASTExpression;
+typedef struct ASTStatement_t         ASTStatement;
+typedef struct ASTStatementList_t     ASTStatementList;
+typedef struct ASTFunctionDecl_t      ASTFunctionDecl;
+typedef struct ASTAssignment_t        ASTAssignment;
+typedef struct ASTIfStatement_t       ASTIfStatement;
+typedef struct ASTForStatement_t      ASTForStatement;
+typedef struct ASTWhileStatement_t    ASTWhileStatement;
+typedef struct ASTReturnStatement_t   ASTReturnStatement;
 
+//
+// Operator Enums
+//
 
 typedef enum ASTOperator_e
 {
@@ -29,204 +23,238 @@ typedef enum ASTOperator_e
   OP_SUBTRACT,
   OP_MULTIPLY,
   OP_DIVIDE,
+  OP_MOD,
   OP_ASSIGN,
-  OP_NOT,
-  OP_AND,
-  OP_OR,
-  OP_LT,
-  OP_GT,
-  OP_LE,
-  OP_GE,
-  OP_EQ,
-  OP_NEQ
 } ASTOperator;
 
-
-typedef enum ASTDataType_e
+typedef enum ASTUnaryOperator_e
 {
-  TYPE_VOID,
-  TYPE_INT,
-  TYPE_FLOAT,
-  TYPE_STRING,
-} ASTDataType;
+  OP_UNARY_PLUS,
+  OP_UNARY_MINUS,
+  OP_LOGICAL_NOT,  // Logical NOT operator
+} ASTUnaryOperator;
 
-
-// Forward declare structures
-typedef struct ASTNodeLiteral_t       ASTNodeLiteral;
-typedef struct ASTNodeVariable_t      ASTNodeVariable;
-typedef struct ASTNodeExpression_t    ASTNodeExpression;
-typedef struct ASTNodeUnaryOp_t       ASTNodeUnaryOp;
-typedef struct ASTNodeBinaryOp_t      ASTNodeBinaryOp;
-typedef struct ASTNodeTerm_t          ASTNodeTerm;
-typedef struct ASTNodeFactor_t        ASTNodeFactor;
-typedef struct ASTNodeAssignment_t    ASTNodeAssignment;
-typedef struct ASTNodePrint_t         ASTNodePrint;
-typedef struct ASTNodeIf_t            ASTNodeIf;
-typedef struct ASTNodeWhile_t         ASTNodeWhile;
-typedef struct ASTNodeFor_t           ASTNodeFor;
-typedef struct ASTNodeStatement_t     ASTNodeStatement;
-typedef struct ASTNodeFunctionDeclaration_t ASTNodeFunctionDeclaration;
-typedef struct ASTNodeProgram_t       ASTNodeProgram;
-
-typedef struct ASTNodeLiteral_t
+typedef enum ASTComparisonOperator_e
 {
-  ASTDataType type;
-  union
+  OP_LT,
+  OP_GT,
+  OP_LTE,
+  OP_GTE,
+  OP_EQ,
+  OP_NEQ,
+} ASTComparisonOperator;
+
+typedef enum ASTLogicalOperator_e
+{
+  OP_LOGICAL_AND,  // Logical AND
+  OP_LOGICAL_OR    // Logical OR
+} ASTLogicalOperator;
+
+typedef enum ASTStatementType_e
+{
+  AST_STATEMENT_ASSIGNMENT,
+  AST_STATEMENT_IF,
+  AST_STATEMENT_FOR,
+  AST_STATEMENT_WHILE,
+  AST_STATEMENT_RETURN,
+  AST_STATEMENT_FUNCTION_DECL,
+  AST_STATEMENT_PRINT,
+  AST_STATEMENT_INPUT,
+  AST_STATEMENT_BREAK,
+} ASTStatementType;
+
+typedef enum ASTExpressionType_e
+{
+  EXPR_VOID       = 0,//used in runtime
+  EXPR_BINARY,
+  EXPR_UNARY,
+  EXPR_COMPARISON,
+  EXPR_LOGICAL,
+  EXPR_FACTOR,
+  EXPR_TERM,
+  EXPR_LITERAL_INT,
+  EXPR_LITERAL_FLOAT,
+  EXPR_LITERAL_STRING,
+  EXPR_LVALUE,
+} ASTExpressionType;
+
+//
+// Expression nodes for different precedence levels
+//
+
+typedef struct ASTBinaryExpression_t
+{
+  ASTExpression* left;
+  ASTOperator op;
+  ASTExpression* right;
+} ASTBinaryExpression;
+
+typedef struct ASTUnaryExpression_t
+{
+  ASTUnaryOperator op;
+  ASTExpression* expression;
+} ASTUnaryExpression;
+
+typedef struct ASTComparisonExpression_t
+{
+  ASTExpression* left;
+  ASTComparisonOperator op;
+  ASTExpression* right;
+} ASTComparisonExpression;
+
+typedef struct ASTFactor_t
+{
+  ASTExpression* left;
+  ASTOperator op; // Handles * / % 
+  ASTExpression* right;
+} ASTFactor;
+
+typedef struct ASTTerm_t
+{
+  ASTExpression* left;
+  ASTOperator op; // Handles + -
+  ASTExpression* right;
+} ASTTerm;
+
+typedef struct ASTLogicalExpression_t
+{
+  ASTExpression* left;
+  ASTLogicalOperator op; // Handles && and ||
+  ASTExpression* right;
+} ASTLogicalExpression;
+
+typedef struct ASTExpression_t
+{
+  ASTExpressionType type;
+  union 
   {
-    int     int_value;
-    double  float_value;
-  } data;
-} ASTNodeLiteral;
+    ASTBinaryExpression binary_expr;
+    ASTUnaryExpression unary_expr;
+    ASTComparisonExpression comparison_expr;
+    ASTLogicalExpression logical_expr;
+    ASTFactor factor_expr;
+    ASTTerm term_expr;
+    double number_literal;
+    char* string_literal;
+    char* identifier;
+  } as ;
+} ASTExpression;
 
+//
+// Statement Nodes
+//
 
-typedef struct ASTNodeVariable_t
+typedef struct ASTAssignment_t
 {
-  Smallstr  name;
-} ASTNodeVariable;
+  char* identifier;
+  ASTExpression* expression;
+} ASTAssignment;
 
-
-typedef struct ASTNodeUnaryOp_t
+typedef struct ASTIfStatement_t
 {
-  ASTOperator         op;
-  ASTNodeExpression*  operand;
-} ASTNodeUnaryOp;
+  ASTExpression* condition;
+  ASTStatement* if_branch;
+  ASTStatement* else_branch;
+} ASTIfStatement;
 
-
-typedef struct ASTNodeBinaryOp_t
+typedef struct ASTForStatement_t
 {
-  ASTOperator         op;
-  ASTNodeExpression*  left;
-  ASTNodeExpression*  right;
-} ASTNodeBinaryOp;
+  ASTAssignment* init;
+  ASTExpression* condition;
+  ASTAssignment* update;
+  ASTStatement* body;
+} ASTForStatement;
 
-
-typedef struct ASTNodeFunctionCall_t
+typedef struct ASTWhileStatement_t
 {
-  Smallstr            function_name;
-  ASTNodeExpression** arguments;
-  int                 arg_count;
-} ASTNodeFunctionCall;
+  ASTExpression* condition;
+  ASTStatement* body;
+} ASTWhileStatement;
 
-
-typedef struct ASTNodeExpression_t
+typedef struct ASTReturnStatement_t
 {
-  ASTNodeType type;
-  union
+  ASTExpression* condition;
+} ASTReturnStatement;
+
+typedef struct ASTBlock_t
+{
+  ASTStatementList* statements;
+} ASTBlock;
+
+typedef struct ASTStatement_t
+{
+  ASTStatementType type;
+  union 
   {
-    ASTNodeLiteral      literal;
-    ASTNodeVariable     variable;
-    ASTNodeUnaryOp      unary_op;
-    ASTNodeBinaryOp     binary_op;
-    ASTNodeFunctionCall function_call;
-  } data;
-} ASTNodeExpression;
+    ASTAssignment     assignment;
+    ASTIfStatement    if_stmt;
+    ASTForStatement   for_stmt;
+    ASTWhileStatement while_stmt;
+    ASTFunctionDecl*  function_decl;
+    ASTExpression*    return_expr;
+    ASTExpression*    print_expr;
+    ASTExpression*    input_expr;
+    ASTBlock* block;
+  } as;
+} ASTStatement_t;
 
-
-struct ASTNodeTerm_t
+typedef struct ASTStatementList_t 
 {
-  ASTNodeExpression*  factor;
-  ASTNodeTerm*        next;
-};
+  ASTStatement* statement;
+  ASTStatementList* next;
+} ASTStatementList;
 
-
-typedef struct ASTNodeFactor_t
+typedef struct ASTFunctionDecl_t
 {
-  ASTNodeType type;
-  union
-  {
-    ASTNodeLiteral      literal;
-    ASTNodeVariable     variable;
-    ASTNodeExpression*  expression;
-  } data;
-} ASTNodeFactor;
+  char* identifier;
+  ASTStatementList* params;
+  ASTBlock* body;
+} ASTFunctionDecl;
 
-
-typedef struct ASTNodeAssignment_t
+typedef struct ASTProgram_t
 {
-  Smallstr            variable_name; 
-  ASTNodeExpression*  expression;
-} ASTNodeAssignment;
+  ASTStatementList* statements;
+} ASTProgram;
 
 
-typedef struct ASTNodePrint_t
-{
-  ASTNodeExpression *expression;
-} ASTNodePrint;
+//
+// utility functions
+//
 
 
-typedef struct ASTNodeIf_t
-{
-  ASTNodeExpression *condition;
-  ASTNodeStatement  *then_branch;
-  ASTNodeStatement  *else_branch;
-} ASTNodeIf;
+//
+// Helper functions for ASTExpression nodes
+//
 
+ASTExpression* ast_create_expression_binary(ASTExpression* left, ASTOperator op, ASTExpression* right);
+ASTExpression* ast_create_expression_unary(ASTUnaryOperator op, ASTExpression* expression);
+ASTExpression* ast_create_expression_logical(ASTExpression* left, ASTLogicalOperator op, ASTExpression* right);
+ASTExpression* ast_create_expression_comparison(ASTExpression* left, ASTComparisonOperator op, ASTExpression* right);
+ASTExpression* ast_create_expression_literal_int(int value);
+ASTExpression* ast_create_expression_literal_float(double value);
+ASTExpression* ast_create_expression_literal_string(const char* value);
+ASTExpression* ast_create_expression_lvalue(const char* identifier);
 
-typedef struct ASTNodeWhile_t
-{
-  ASTNodeExpression *condition;
-  ASTNodeStatement  *body;
-} ASTNodeWhile;
+//
+// Helper functions for ASTStatement nodes
+//
 
+ASTStatement* ast_create_statement_assignment(const char* identifier, ASTExpression* expression);
+ASTStatement* ast_create_statement_if(ASTExpression* condition, ASTStatement* if_branch, ASTStatement* else_branch);
+ASTStatement* ast_create_statement_for(ASTAssignment* init, ASTExpression* condition, ASTAssignment* update, ASTStatement* body);
+ASTStatement* ast_create_statement_while(ASTExpression* condition, ASTStatement* body);
+ASTStatement* ast_create_statement_return(ASTExpression* expression);
+ASTStatement* ast_create_statement_function_decl(const char* identifier, ASTStatementList* params, ASTBlock* body);
+ASTStatement* ast_create_statement_print(ASTExpression* expression);
+ASTStatement* ast_create_statement_input(const char* identifier);
+ASTStatement* ast_create_statement_break(void);
 
-typedef struct ASTNodeFor_t
-{
-  ASTNodeAssignment *initialization;
-  ASTNodeExpression *condition;
-  ASTNodeAssignment *increment;
-  ASTNodeStatement  *body;
-} ASTNodeFor;
+//
+// Helper function to create a new block
+//
 
+ASTBlock* ast_create_block(ASTStatementList* statements);
+ASTStatementList* ast_create_statement_list(ASTStatement* statement, ASTStatementList* next);
+ASTProgram* ast_create_program(ASTStatementList* statements);
 
-typedef struct ASTNodeFunctionDeclaration_t
-{
-  Smallstr          function_name;
-  char**            parameters;
-  int               param_count;
-  ASTNodeStatement* body;
-} ASTNodeFunctionDeclaration;
-
-
-typedef struct ASTNodeStatement_t
-{
-  ASTNodeType type;
-  union
-  {
-    ASTNodeAssignment assignment;
-    ASTNodePrint      print;
-    ASTNodeIf         if_node;
-    ASTNodeWhile      while_node;
-    ASTNodeFor        for_node;
-    ASTNodeFunctionDeclaration function_declaration;
-  } data;
-  ASTNodeStatement *next; // Next statement in the program
-} ASTNodeStatement;
-
-
-typedef struct ASTNodeProgram_t
-{
-  ASTNodeStatement *statements; // List of statements
-} ASTNodeProgram;
-
-ASTNodeLiteral*     ast_mknode_literal_int(int value);
-ASTNodeLiteral*     ast_mknode_literal_float(double value);
-ASTNodeVariable*    ast_mknode_variable(const char *name);
-ASTNodeExpression*  ast_mknode_expression_unary(ASTOperator op, ASTNodeExpression *operand);
-ASTNodeExpression*  ast_mknode_expression_binary(ASTOperator op, ASTNodeExpression *left, ASTNodeExpression *right);
-ASTNodeExpression*  ast_mknode_expression_function_call(const char *function_name, ASTNodeExpression **arguments, int argument_count);
-ASTNodeTerm*        ast_mknode_term(ASTNodeExpression *factor);
-ASTNodeFactor*      ast_mknode_factor_literal(ASTNodeLiteral *literal);
-ASTNodeFactor*      ast_mknode_factor_literal_int(int value);
-ASTNodeFactor*      ast_mknode_factor_literal_float(float value);
-ASTNodeFactor*      ast_mknode_factor_variable(ASTNodeVariable *variable);
-ASTNodeFactor*      ast_mknode_factor_expression(ASTNodeExpression *expression);
-ASTNodeStatement*   ast_mknode_statement_assignment(const char *variable_name, ASTNodeExpression *expression);
-ASTNodeStatement*   ast_mknode_statement_print(ASTNodeExpression *expression);
-ASTNodeStatement*   ast_mknode_statement_if(ASTNodeExpression *condition, ASTNodeStatement *then_branch, ASTNodeStatement *else_branch);
-ASTNodeStatement*   ast_mknode_statement_while(ASTNodeExpression *condition, ASTNodeStatement *body);
-ASTNodeStatement*   ast_mknode_statement_for(ASTNodeAssignment *initialization, ASTNodeExpression *condition, ASTNodeAssignment *increment, ASTNodeStatement *body);
-ASTNodeStatement*   ast_mknode_statement_function_declaration(const char *function_name, char **parameters, int parameter_count, ASTNodeStatement *body);
-ASTNodeProgram*     ast_mknode_program(ASTNodeStatement *statements);
-ASTNodeExpression*  ast_mknode_expression_factor(ASTNodeFactor *factor);
-#endif //AST_H
-
+#endif // AST_H

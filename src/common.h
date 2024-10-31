@@ -92,6 +92,7 @@ extern "C" {
 #     endif //DEBUG
 #endif //COMPILER_MSVC
 
+# define log_and_break(fmt, ...) do {debug_print_detailed(stderr, "FATAL", __LINE__, __FILE__, __func__, fmt, __VA_ARGS__); ASSERT_BREAK(); } while(0);
 
 
   /* Assertion macros */
@@ -241,6 +242,11 @@ extern "C" {
   int read_entire_file_to_memory(const char *file_name, char **out_buffer, size_t *out_file_size, bool null_terminate);
 
 
+
+  /*
+   * Utility function to duplicate strings
+   */
+  char* strdup_safe(const char* str);
 
 #ifdef __cplusplus
 }

@@ -3,41 +3,52 @@
 
 #include "ast.h"
 
-typedef struct RuntimeExpressionValue_t RuntimeExpressionValue;
-typedef struct RuntimeVariableEntry_t RuntimeVariableEntry;
-typedef struct RuntimeEnviroment_t RuntimeEnviroment;
+//
+// Symbol Table
+//
 
-typedef struct RuntimeExpressionValue_t
+#define MAX_VARS 100
+
+typedef enum RuntimeError_t
 {
-  ASTDataType type;
+  RUNTIME_SUCCESS                     = 0,
+  RUNTIME_ERROR_DIVIDE_BY_ZERO        = -1024,
+  RUNTIME_ERROR_UNSUPPORTED_OPERATION = -1025,
+  RUNTIME_ERROR_NOT_IMPLEMENTED       = -1025,
+}RuntimeError;
+
+typedef struct ExpressionValue_t
+{
+  unsigned int error_code;
+  ASTExpressionType type;
   union
   {
-    int as_int;
-    double as_float;
-    char* as_string;
-  } value;
+    double   number_value;
+    char* string_value;
+  } as;
 } ExpressionValue;
 
-typedef struct RuntimeVariableEntry_t
+typedef struct 
 {
-  Smallstr name;
+  char* identifier;
   ExpressionValue value;
-} VariableEntry;
+} Symbol;
 
-typedef struct RuntimeEnviroment_t
+typedef struct 
 {
-  VariableEntry *entries;
+  Symbol vars[MAX_VARS];
   int count;
-} Environment;
+} SymbolTable;
 
+void    symbol_table_init(SymbolTable* table);
+Symbol* symbol_table_get_variable(SymbolTable* table, const char* identifier);
 
-void eval_program(ASTNodeProgram*program, Environment *env);
-ExpressionValue eval_expression(ASTNodeExpression *expr, Environment *env);
-Environment* create_environment();
-void set_variable_int(Environment *env, const char *name, int value);
-void set_variable_float(Environment *env, const char *name, double value);
-VariableEntry* get_variable(Environment *env, const char *name);
+//
+// Evaluation fucntions
+//
 
+ExpressionValue eval_expression(SymbolTable* table, ASTExpression* expr);
+ExpressionValue eval_statement(SymbolTable* table, ASTStatement* stmt);
+int eval_program(SymbolTable* table, ASTProgram* program);
 
-#endif //INTERPRETER_H
-
+#endif  // INTERPRETER_H
