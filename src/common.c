@@ -141,7 +141,9 @@ int read_entire_file_to_memory(const char *file_name, char **out_buffer, size_t 
 
 char* strdup_safe(const char* str)
 {
-    char* copy = (char*)malloc(strlen(str) + 1);
-    if (copy) strcpy(copy, str);
-    return copy;
+  if (str == NULL)
+    return NULL;
+  char* copy = (char*)malloc(strlen(str) + 1);
+  if (copy) strcpy(copy, str);
+  return copy;
 }

@@ -1,47 +1,61 @@
+/**
+ * @file ast.h
+ * @brief Defines core structures and functions for Abstract Syntax Tree (AST) nodes.
+ *
+ * Provides data structures and utilities for expressions, statements, 
+ * and program constructs in a language's AST.
+ *
+ * @author marciovmf
+ */
+
 #ifndef AST_H
 #define AST_H
 
 #include "common.h"   // for Smallstr
 
-typedef struct ASTExpression_t        ASTExpression;
-typedef struct ASTStatement_t         ASTStatement;
-typedef struct ASTStatementList_t     ASTStatementList;
-typedef struct ASTFunctionDecl_t      ASTFunctionDecl;
-typedef struct ASTAssignment_t        ASTAssignment;
-typedef struct ASTIfStatement_t       ASTIfStatement;
-typedef struct ASTForStatement_t      ASTForStatement;
-typedef struct ASTWhileStatement_t    ASTWhileStatement;
-typedef struct ASTReturnStatement_t   ASTReturnStatement;
-
-//
-// Operator Enums
-//
+typedef struct ASTExpression_t            ASTExpression;
+typedef struct ASTStatement_t             ASTStatement;
+typedef struct ASTStatementList_t         ASTStatementList;
+typedef struct ASTStatementList_t         ASTBlock;
+typedef struct ASTFunctionDecl_t          ASTFunctionDecl;
+typedef struct ASTAssignment_t            ASTAssignment;
+typedef struct ASTIfStatement_t           ASTIfStatement;
+typedef struct ASTForStatement_t          ASTForStatement;
+typedef struct ASTWhileStatement_t        ASTWhileStatement;
+typedef struct ASTReturnStatement_t       ASTReturnStatement;
+typedef struct ASTBinaryExpression_t      ASTBinaryExpression;
+typedef struct ASTUnaryExpression_t       ASTUnaryExpression;
+typedef struct ASTComparisonExpression_t  ASTComparisonExpression;
+typedef struct ASTLogicalExpression_t     ASTLogicalExpression;
+typedef struct ASTFactor_t                ASTFactor; 
+typedef struct ASTTerm_t                  ASTTerm;
+typedef struct ASTProgram_t               ASTProgram;
 
 typedef enum ASTOperator_e
 {
-  OP_ADD,
-  OP_SUBTRACT,
-  OP_MULTIPLY,
-  OP_DIVIDE,
-  OP_MOD,
-  OP_ASSIGN,
+  OP_ADD,        // Addition
+  OP_SUBTRACT,   // Subtraction
+  OP_MULTIPLY,   // Multiplication
+  OP_DIVIDE,     // Division
+  OP_MOD,        // Modulus
+  OP_ASSIGN      // Assignment
 } ASTOperator;
 
 typedef enum ASTUnaryOperator_e
 {
-  OP_UNARY_PLUS,
-  OP_UNARY_MINUS,
-  OP_LOGICAL_NOT,  // Logical NOT operator
+  OP_UNARY_PLUS,   // Unary plus
+  OP_UNARY_MINUS,  // Unary minus
+  OP_LOGICAL_NOT   // Logical NOT
 } ASTUnaryOperator;
 
 typedef enum ASTComparisonOperator_e
 {
-  OP_LT,
-  OP_GT,
-  OP_LTE,
-  OP_GTE,
-  OP_EQ,
-  OP_NEQ,
+  OP_LT,    // Less than
+  OP_GT,    // Greater than
+  OP_LTE,   // Less than or equal to
+  OP_GTE,   // Greater than or equal to
+  OP_EQ,    // Equal to
+  OP_NEQ    // Not equal to
 } ASTComparisonOperator;
 
 typedef enum ASTLogicalOperator_e
@@ -52,175 +66,158 @@ typedef enum ASTLogicalOperator_e
 
 typedef enum ASTStatementType_e
 {
-  AST_STATEMENT_ASSIGNMENT,
-  AST_STATEMENT_IF,
-  AST_STATEMENT_FOR,
-  AST_STATEMENT_WHILE,
-  AST_STATEMENT_RETURN,
-  AST_STATEMENT_FUNCTION_DECL,
-  AST_STATEMENT_PRINT,
-  AST_STATEMENT_INPUT,
-  AST_STATEMENT_BREAK,
+  AST_STATEMENT_ASSIGNMENT,      // Assignment
+  AST_STATEMENT_IF,              // If statement
+  AST_STATEMENT_FOR,             // For loop
+  AST_STATEMENT_WHILE,           // While loop
+  AST_STATEMENT_RETURN,          // Return statement
+  AST_STATEMENT_FUNCTION_DECL,   // Function declaration
+  AST_STATEMENT_PRINT,           // Print statement
+  AST_STATEMENT_INPUT,           // Input statement
+  AST_STATEMENT_BREAK            // Break statement
 } ASTStatementType;
 
 typedef enum ASTExpressionType_e
 {
-  EXPR_VOID       = 0,//used in runtime
-  EXPR_BINARY,
-  EXPR_UNARY,
-  EXPR_COMPARISON,
-  EXPR_LOGICAL,
-  EXPR_FACTOR,
-  EXPR_TERM,
-  EXPR_LITERAL_INT,
-  EXPR_LITERAL_FLOAT,
-  EXPR_LITERAL_STRING,
-  EXPR_LVALUE,
+  EXPR_VOID,               // Void expression
+  EXPR_BINARY,             // Binary expression
+  EXPR_UNARY,              // Unary expression
+  EXPR_COMPARISON,         // Comparison expression
+  EXPR_LOGICAL,            // Logical expression
+  EXPR_FACTOR,             // Factor for high precedence
+  EXPR_TERM,               // Term for low precedence
+  EXPR_LITERAL_INT,        // Integer literal
+  EXPR_LITERAL_FLOAT,      // Floating-point literal
+  EXPR_LITERAL_STRING,     // String literal
+  EXPR_LVALUE              // Variable reference
 } ASTExpressionType;
 
-//
-// Expression nodes for different precedence levels
-//
-
-typedef struct ASTBinaryExpression_t
+struct ASTBinaryExpression_t
 {
   ASTExpression* left;
+  ASTExpression* right;
   ASTOperator op;
-  ASTExpression* right;
-} ASTBinaryExpression;
+};
 
-typedef struct ASTUnaryExpression_t
+struct ASTUnaryExpression_t
 {
-  ASTUnaryOperator op;
   ASTExpression* expression;
-} ASTUnaryExpression;
+  ASTUnaryOperator op;
+};
 
-typedef struct ASTComparisonExpression_t
+struct ASTComparisonExpression_t
 {
   ASTExpression* left;
+  ASTExpression* right;
   ASTComparisonOperator op;
-  ASTExpression* right;
-} ASTComparisonExpression;
+};
 
-typedef struct ASTFactor_t
+struct ASTFactor_t
 {
   ASTExpression* left;
-  ASTOperator op; // Handles * / % 
   ASTExpression* right;
-} ASTFactor;
+  ASTOperator op;
+};
 
-typedef struct ASTTerm_t
+struct ASTTerm_t
 {
   ASTExpression* left;
-  ASTOperator op; // Handles + -
   ASTExpression* right;
-} ASTTerm;
+  ASTOperator op;
+};
 
-typedef struct ASTLogicalExpression_t
+struct ASTLogicalExpression_t
 {
   ASTExpression* left;
-  ASTLogicalOperator op; // Handles && and ||
   ASTExpression* right;
-} ASTLogicalExpression;
+  ASTLogicalOperator op;
+};
 
-typedef struct ASTExpression_t
+struct ASTExpression_t
 {
-  ASTExpressionType type;
+  ASTExpressionType type;                   // Expression type
   union 
   {
-    ASTBinaryExpression binary_expr;
-    ASTUnaryExpression unary_expr;
-    ASTComparisonExpression comparison_expr;
-    ASTLogicalExpression logical_expr;
-    ASTFactor factor_expr;
-    ASTTerm term_expr;
-    double number_literal;
-    char* string_literal;
-    char* identifier;
-  } as ;
-} ASTExpression;
+    ASTBinaryExpression     binary_expr;    // Binary expression
+    ASTUnaryExpression      unary_expr;     // Unary expression
+    ASTComparisonExpression comparison_expr;// Comparison expression
+    ASTLogicalExpression    logical_expr;   // Logical expression
+    ASTFactor               factor_expr;    // Factor expression
+    ASTTerm                 term_expr;      // Term expression
+    double                  number_literal; // Numeric literal
+    char*                   string_literal; // String literal
+    Smallstr                identifier;     // Variable identifier
+  } as;
+};
 
-//
-// Statement Nodes
-//
-
-typedef struct ASTAssignment_t
+struct ASTAssignment_t
 {
-  char* identifier;
+  Smallstr identifier;
   ASTExpression* expression;
-} ASTAssignment;
+};
 
-typedef struct ASTIfStatement_t
+struct ASTIfStatement_t
 {
   ASTExpression* condition;
   ASTStatement* if_branch;
   ASTStatement* else_branch;
-} ASTIfStatement;
+};
 
-typedef struct ASTForStatement_t
+struct ASTForStatement_t
 {
   ASTAssignment* init;
   ASTExpression* condition;
   ASTAssignment* update;
   ASTStatement* body;
-} ASTForStatement;
+};
 
-typedef struct ASTWhileStatement_t
+struct ASTWhileStatement_t
 {
   ASTExpression* condition;
   ASTStatement* body;
-} ASTWhileStatement;
+};
 
-typedef struct ASTReturnStatement_t
+struct ASTReturnStatement_t
 {
   ASTExpression* condition;
-} ASTReturnStatement;
+};
 
-typedef struct ASTBlock_t
+struct ASTFunctionDecl_t
 {
-  ASTStatementList* statements;
-} ASTBlock;
+  char*             identifier;
+  ASTStatementList* params;
+  ASTBlock*         body;
+};
 
-typedef struct ASTStatement_t
+struct ASTStatement_t
 {
-  ASTStatementType type;
+  ASTStatementType type; // Statement type
   union 
   {
-    ASTAssignment     assignment;
-    ASTIfStatement    if_stmt;
-    ASTForStatement   for_stmt;
-    ASTWhileStatement while_stmt;
-    ASTFunctionDecl*  function_decl;
-    ASTExpression*    return_expr;
-    ASTExpression*    print_expr;
-    ASTExpression*    input_expr;
-    ASTBlock* block;
+    ASTAssignment     assignment;     // Assignment
+    ASTIfStatement    if_stmt;        // If statement
+    ASTForStatement   for_stmt;       // For loop
+    ASTWhileStatement while_stmt;     // While statement
+    ASTFunctionDecl   function_decl;  // Function declaration
+    ASTExpression*    return_expr;    // Return expression
+    ASTExpression*    print_expr;     // Print statement
+    ASTExpression*    input_expr;     // Input statement
+    ASTBlock* block;                  // Block of statements
   } as;
-} ASTStatement_t;
+};
 
-typedef struct ASTStatementList_t 
+struct ASTStatementList_t 
 {
-  ASTStatement* statement;
-  ASTStatementList* next;
-} ASTStatementList;
+  ASTStatement**  statements; // Array of pointers to ASTStatements
+  size_t          count;      // Number of statements in the array
+  size_t          capacity;   // Capacity of the array
+};
 
-typedef struct ASTFunctionDecl_t
+
+struct ASTProgram_t
 {
-  char* identifier;
-  ASTStatementList* params;
   ASTBlock* body;
-} ASTFunctionDecl;
-
-typedef struct ASTProgram_t
-{
-  ASTStatementList* statements;
-} ASTProgram;
-
-
-//
-// utility functions
-//
-
+};
 
 //
 // Helper functions for ASTExpression nodes
@@ -236,7 +233,7 @@ ASTExpression* ast_create_expression_literal_string(const char* value);
 ASTExpression* ast_create_expression_lvalue(const char* identifier);
 
 //
-// Helper functions for ASTStatement nodes
+// Helper functions for creating ASTStatement
 //
 
 ASTStatement* ast_create_statement_assignment(const char* identifier, ASTExpression* expression);
@@ -250,11 +247,17 @@ ASTStatement* ast_create_statement_input(const char* identifier);
 ASTStatement* ast_create_statement_break(void);
 
 //
-// Helper function to create a new block
+// Helper functions for Block, ASTSatementList and ASTProgram
 //
 
-ASTBlock* ast_create_block(ASTStatementList* statements);
-ASTStatementList* ast_create_statement_list(ASTStatement* statement, ASTStatementList* next);
-ASTProgram* ast_create_program(ASTStatementList* statements);
+ASTProgram*       ast_create_program(ASTStatementList* statements);
+ASTStatementList* ast_create_statement_list(size_t capacity);
+size_t            ast_statement_list_add(ASTStatementList* stmt_list, ASTStatement* statement);
+
+
+void ast_destroy_expression(ASTExpression* expression);
+void ast_destroy_statement(ASTStatement* statement);
+void ast_destroy_program(ASTProgram* program);
+void ast_destroy_statement_list(ASTStatementList* stmt_list);
 
 #endif // AST_H

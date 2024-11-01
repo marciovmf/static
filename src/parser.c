@@ -1,5 +1,13 @@
+/**
+ * @file parser.c
+ * @brief Defines the lexer and parser for tokenizing and parsing source code.
+ *
+ * This header contains structures and functions for the lexer and parser, 
+ * including token definitions, lexer operations, and parsing functions.
+ * 
+ * @author marciofmv
+ */
 #include "common.h"
-#include "parser.h"
 #include "ast.h"
 #include <ctype.h>
 #include <string.h>
@@ -10,7 +18,70 @@
 #define report_error_unexpected_token(lexer, token_type) log_error("Sytax error at %d, %d: Unexpected token '%s'\n",\
     lexer->line, lexer->column, token_get_name(token_type))
 
-/** Token **/
+
+
+//
+// Lexer
+//
+
+
+#define PARSER_MAX_TOKEN_LENGTH 100
+
+typedef enum
+{
+  TOKEN_ERROR,              // Represents a tokenizer error
+  TOKEN_OP_ASSIGN,          // =
+  TOKEN_OP_EQ,              // ==
+  TOKEN_OP_NEQ,             // !=
+  TOKEN_OP_LT,              // <
+  TOKEN_OP_LTE,             // <=
+  TOKEN_OP_GT,              // >
+  TOKEN_OP_GTE,             // >=
+  TOKEN_OPEN_PAREN,         // (
+  TOKEN_CLOSE_PAREN,        // )
+  TOKEN_OPEN_BRACE,         // {
+  TOKEN_CLOSE_BRACE,        // }
+  TOKEN_OPEN_BACKET,        // [
+  TOKEN_CLOSE_BRACKET,      // ]
+  TOKEN_ASTERISK,           // *
+  TOKEN_SLASH,              // /
+  TOKEN_PERCENT,            // %
+  TOKEN_COMMA,              // ,
+  TOKEN_DOT,                // .
+  TOKEN_EXCLAMATION,        // !
+  TOKEN_PLUS,               // +
+  TOKEN_MINUS,              // -
+  TOKEN_IF,                 // if keyword
+  TOKEN_ELSE,               // else keyword
+  TOKEN_FOR,                // for keyword
+  TOKEN_RETURN,             // return keyword
+  TOKEN_INCLUDE,            // include keyword
+  TOKEN_FUNCTION,           // function keyword
+  TOKEN_IDENTIFIER,         // <variable names>
+  TOKEN_LITERAL_INT,        // [0-9]+
+  TOKEN_LITERAL_FLOAT,      // [0-9]*"."[0-9]+
+  TOKEN_LITERAL_STRING,     // "double quote string!"
+  TOKEN_EOF,                // End of file/stream
+  TOKEN_COUNT_
+} TokenType;
+
+
+typedef struct
+{
+  TokenType type;
+  char value[PARSER_MAX_TOKEN_LENGTH];
+} Token;
+
+
+typedef struct
+{
+  char *buffer;        // Buffer containing the file contents
+  char current_char;   // Current character
+  char next_char;      // Next character
+  size_t position;     // Current position in the buffer
+  int line;            // Current line number
+  int column;          // Current column number
+} Lexer;
 
 
 const char* token_get_name(TokenType token)
@@ -56,8 +127,6 @@ const char* token_get_name(TokenType token)
   return "Unknown Token";
 }
 
-
-/** Lexer **/
 
 Token lexer_get_next_token(Lexer *lexer);
 bool parse_expression(Lexer* lexer);
@@ -126,7 +195,7 @@ void lexer_skip_whitespace(Lexer *lexer)
 }
 
 
-Token get_identifier(Lexer *lexer)
+Token lexer_get_identifier(Lexer *lexer)
 {
   Token token;
   int i = 0;
@@ -152,9 +221,7 @@ Token get_identifier(Lexer *lexer)
 }
 
 
-/** Parser **/
-
-Token get_literal_string(Lexer *lexer)
+Token lexer_get_literal_string(Lexer *lexer)
 {
   Token out;
 
@@ -188,6 +255,16 @@ Token get_literal_string(Lexer *lexer)
 }
 
 
+bool lexer_skip_token(Lexer* lexer, TokenType expected_type)
+{
+  Token t = lexer_get_next_token(lexer);
+  bool result = (t.type == expected_type);
+  if (!result)
+    report_error_unexpected_token(lexer, t.type);
+  return true;
+}
+
+
 Token lexer_get_next_token(Lexer *lexer)
 {
   Token token;
@@ -195,12 +272,12 @@ Token lexer_get_next_token(Lexer *lexer)
 
   if (lexer->current_char == '"')
   {
-    return get_literal_string(lexer);
+    return lexer_get_literal_string(lexer);
   }
 
   if (isalpha(lexer->current_char))
   {
-    return get_identifier(lexer);
+    return lexer_get_identifier(lexer);
   } 
   else if (isdigit(lexer->current_char))
   {
@@ -379,43 +456,18 @@ bool lexer_require_token(Lexer* lexer, TokenType expected_type, Token* out)
 }
 
 
-bool lexer_skip_token(Lexer* lexer, TokenType expected_type)
-{
-  Token t = lexer_get_next_token(lexer);
-  bool result = (t.type == expected_type);
-  if (!result)
-    report_error_unexpected_token(lexer, t.type);
-  return true;
-}
+
+//
+// Parser
+//
 
 
 /*
- * Parses a program
- *
- * <Program> -> ( <StatementList> )*
- * 
- */ 
-bool parse_program(Lexer *lexer)
-{
-  bool success = true;
-  while (true) //lexer->current_char != 0)
-  {
-    if (!parse_statement(lexer))
-    {
-      success = false;
-      break;
-    }
-  }
-  return success;
-}
-
-
-/*
- * Parses an Argument List
- *
- * <ArgList> -> [ <Expression> ( "," <Expression> )* ]
- * 
- */ 
+* Parses an Argument List
+*
+* <ArgList> -> [ <Expression> ( "," <Expression> )* ]
+* 
+*/
 bool parse_arg_list(Lexer* lexer)
 {
   UNUSED(lexer);
@@ -427,7 +479,6 @@ bool parse_arg_list(Lexer* lexer)
  * Parses a Factor
  *
  * <Factor> -> ( int_literal | float_literal | string_literal | <lvalue> | "(" <Expression> ")" )
- * 
  */ 
 bool parse_factor(Lexer* lexer)
 {
@@ -540,39 +591,6 @@ bool parse_num_expression(Lexer* lexer)
 
 
 /*
- * Parses an Expression
- *
- * <Expression> -> <NumExpression> [ ( "<" | ">" | "<=" | ">=" | "==" | "!=" ) <NumExpression> ]
- * 
- */ 
-bool parse_expression(Lexer* lexer)
-{
-  bool expression_ok = false;
-  Token look_ahead_token = {0};
-  while(true)
-  {
-    expression_ok = parse_num_expression(lexer);
-
-    if (! expression_ok)
-      break;
-
-    look_ahead_token = lexer_peek_next_token(lexer);
-    if (look_ahead_token.type != TOKEN_OP_LT && look_ahead_token.type != TOKEN_OP_LTE
-        && look_ahead_token.type != TOKEN_OP_GT && look_ahead_token.type != TOKEN_OP_GTE
-        && look_ahead_token.type != TOKEN_OP_EQ && look_ahead_token.type != TOKEN_OP_NEQ)
-    {
-      break;
-    }
-
-    Token op = lexer_get_next_token(lexer);
-    UNUSED(op);
-  }
-
-  return expression_ok;
-};
-
-
-/*
  * Parses an Lvalue
  *
  * <lvalue> -> identifier
@@ -672,6 +690,39 @@ bool parse_function_declaration_statement(Lexer* lexer)
 
 
 /*
+ * Parses an Expression
+ *
+ * <Expression> -> <NumExpression> [ ( "<" | ">" | "<=" | ">=" | "==" | "!=" ) <NumExpression> ]
+ * 
+ */ 
+bool parse_expression(Lexer* lexer)
+{
+  bool expression_ok = false;
+  Token look_ahead_token = {0};
+  while(true)
+  {
+    expression_ok = parse_num_expression(lexer);
+
+    if (! expression_ok)
+      break;
+
+    look_ahead_token = lexer_peek_next_token(lexer);
+    if (look_ahead_token.type != TOKEN_OP_LT && look_ahead_token.type != TOKEN_OP_LTE
+        && look_ahead_token.type != TOKEN_OP_GT && look_ahead_token.type != TOKEN_OP_GTE
+        && look_ahead_token.type != TOKEN_OP_EQ && look_ahead_token.type != TOKEN_OP_NEQ)
+    {
+      break;
+    }
+
+    Token op = lexer_get_next_token(lexer);
+    UNUSED(op);
+  }
+
+  return expression_ok;
+};
+
+
+/*
  * Parses a Statement
  *
  * <Statement> -> ( <PrintStatement> | <InputStatement> | <ReturnStatement> | <AssignmentStatement>
@@ -707,5 +758,25 @@ bool parse_statement(Lexer *lexer)
   }
 
   return false;
+}
+
+
+/*
+* Parses a program
+*
+* <Program> -> ( <StatementList> )*
+*/
+bool parse_program(Lexer *lexer)
+{
+  bool success = true;
+  while (true) //lexer->current_char != 0)
+  {
+    if (!parse_statement(lexer))
+    {
+      success = false;
+      break;
+    }
+  }
+  return success;
 }
 
