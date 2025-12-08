@@ -1,2 +1,3 @@
-# mrgumby
-A minimalist c++ static site generator
+# Slab
+
+A minimalist static site generator written in C.
