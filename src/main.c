@@ -16,6 +16,7 @@
 #include "slab.h"
 #define MD_IMPL
 #include "markdown.h"
+#include "template.h"
 
 i32 slab_run(const char* site_root)
 {

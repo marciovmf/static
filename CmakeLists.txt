@@ -18,8 +18,29 @@ function(set_target_output_directory  target dir)
   endforeach()
 endfunction()
 
+# --------------------
+# Minima
+# --------------------
+
 # Build dependencies
-set(STDX_INCLUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/src/include")
+set(STDX_INCLUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/src/stdx")
+set(MINIMA_INCLUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/src/minima")
+
+add_library(minima 
+  src/minima/minima.c
+  src/minima/minima_runtime.c)
+
+target_include_directories(minima PUBLIC ${STDX_INCLUDE_DIR} ${MINIMA_INCLUDE_DIR})
+if(MSVC)
+  target_compile_options(minima PRIVATE /WX)
+else()
+  target_compile_options(minima PRIVATE -Wall -Wextra -pedantic -Werror)
+endif()
+
+
+# --------------------
+# Slab
+# --------------------
 
 if(MSVC)
   configure_file(src/version.rc.in version.rc)
@@ -35,14 +56,13 @@ list(APPEND SOURCES
 )
 
 add_executable(slab ${SOURCES})
-target_include_directories(slab
-  PUBLIC ${STDX_INCLUDE_DIR})
-set_target_properties(slab PROPERTIES
-  VERSION ${VERSION_MAJOR}.${VERSION_MINOR})
+target_include_directories(slab PUBLIC ${STDX_INCLUDE_DIR} ${MINIMA_INCLUDE_DIR})
+target_link_libraries(slab PUBLIC minima)
+set_target_properties(slab PROPERTIES VERSION ${VERSION_MAJOR}.${VERSION_MINOR})
 set_target_output_directory(slab ${CMAKE_CURRENT_LIST_DIR}/bin/${CMAKE_SYSTEM_NAME}_${CMAKE_HOST_SYSTEM_PROCESSOR}_$<CONFIG>)
 
 if(MSVC)
-  target_compile_options(slab PRIVATE /W4 /WX)
+  target_compile_options(slab PRIVATE /WX)
 else()
   target_compile_options(slab PRIVATE -Wall -Wextra -pedantic -Werror)
 endif()
